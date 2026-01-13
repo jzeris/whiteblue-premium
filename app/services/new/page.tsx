@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, ChangeEvent } from 'react'
+import { useState, ChangeEvent, FormEvent } from 'react'
 import { Plus, X, ImagePlus, Loader2 } from 'lucide-react'
 
 interface ComboLeg {
@@ -69,7 +69,7 @@ export default function NewService() {
     const { name, value } = e.target
     setService(prev => ({
       ...prev,
-      [name]: value === '' ? 0 : Number(value),
+      [name]: value ? Number(value) : 0,
     }))
   }
 
@@ -158,7 +158,7 @@ export default function NewService() {
     return (base + extrasCost + expensesTotal + commission).toFixed(2)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
     // Mock save

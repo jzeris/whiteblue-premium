@@ -1,223 +1,464 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, ChangeEvent } from 'react'
+import { Plus, X, ImagePlus, Loader2 } from 'lucide-react'
+
+interface ComboLeg {
+  time: string
+  service: string
+  price: number
+  isExternal: boolean
+  externalPartner: string
+  externalCost: number
+}
+
+interface Expense {
+  name: string
+  amount: number
+}
+
+interface Service {
+  name: string
+  description: string
+  price: number
+  duration: string
+  category: string
+  isCombo: boolean
+  legs: ComboLeg[]
+  extras: string[]
+  expenses: Expense[]
+  photos: string[]
+}
 
 export default function NewService() {
-  const [name, setName] = useState('')
-  const [category, setCategory] = useState('Transfers')
-  const [location, setLocation] = useState('Athens')
-  const [mainPrice, setMainPrice] = useState('')
-  const [perPerson, setPerPerson] = useState(false)
-  const [isCombo, setIsCombo] = useState(false) // checkbox combo
-  const [subServices, setSubServices] = useState<string[]>([]) // sub-services (legs)
-  const [description, setDescription] = useState('')
-  const [inclusions, setInclusions] = useState('')
-  const [exclusions, setExclusions] = useState('')
-  const [notesTemplate, setNotesTemplate] = useState('')
-
-  // Λίστα υπηρεσιών
-  const availableServices = [
-    'Airport Transfer',
-    'Hourly',
-    'Day Trip',
-    'Mykonos Package',
-    'Meet & Greet',
-    'Assistant',
-    'Wine Tasting Tour',
-  ]
-
-  const servicePrices: Record<string, number> = {
-    'Airport Transfer': 80,
-    'Hourly': 60,
-    'Day Trip': 300,
-    'Mykonos Package': 800,
-    'Meet & Greet': 50,
-    'Assistant': 100,
-    'Wine Tasting Tour': 450,
-  }
-
-  // Auto fill main price από τοποθεσία
-  const handleLocationChange = (loc: string) => {
-    setLocation(loc)
-    setMainPrice(loc === 'Athens' ? '80' : '150')
-  }
-
-  // Add sub-service
-  const addSubService = () => {
-    setSubServices(prev => [...prev, ''])
-  }
-
-  const updateSubService = (index: number, service: string) => {
-    setSubServices(prev => prev.map((s, i) => i === index ? service : s))
-  }
-
-  const removeSubService = (index: number) => {
-    setSubServices(prev => prev.filter((_, i) => i !== index))
-  }
-
-  // Extras checkboxes
-  const [extras, setExtras] = useState({
-    wheelchair: false,
-    babySeat: false,
-    headphones: false,
+  const [service, setService] = useState<Service>({
+    name: '',
+    description: '',
+    price: 0,
+    duration: '',
+    category: 'Transfer',
+    isCombo: false,
+    legs: [],
+    extras: [],
+    expenses: [],
+    photos: [],
   })
 
-  const toggleExtra = (key: keyof typeof extras) => {
-    setExtras(prev => ({ ...prev, [key]: !prev[key] }))
+  const [isSaving, setIsSaving] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+
+  const categories = ['Transfer', 'Tour', 'Package', 'Custom']
+
+  const extrasList = ['Luggage', 'Baby Seat', 'Wheelchair', 'Headphones', 'VIP', 'Luxury']
+
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target
+    const checked = e.target instanceof HTMLInputElement ? e.target.checked : false
+
+    setService(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
   }
 
-  // Partner Expenses
-  const partners = ['Hotel Nefeli', 'Blue Villas', 'Grande Bretagne', 'Winery Santorini']
+  const handleNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setService(prev => ({
+      ...prev,
+      [name]: value ? Number(value) : 0,
+    }))
+  }
 
-  const [expenses, setExpenses] = useState<{ partner: string; amount: string }[]>([])
+  const toggleCombo = () => {
+    setService(prev => ({
+      ...prev,
+      isCombo: !prev.isCombo,
+      legs: !prev.isCombo
+        ? [
+            ...prev.legs,
+            {
+              time: '',
+              service: '',
+              price: 0,
+              isExternal: false,
+              externalPartner: '',
+              externalCost: 0,
+            },
+          ]
+        : [],
+    }))
+  }
+
+  const addLeg = () => {
+    setService(prev => ({
+      ...prev,
+      legs: [
+        ...prev.legs,
+        {
+          time: '',
+          service: '',
+          price: 0,
+          isExternal: false,
+          externalPartner: '',
+          externalCost: 0,
+        },
+      ],
+    }))
+  }
+
+  const removeLeg = (index: number) => {
+    setService(prev => ({
+      ...prev,
+      legs: prev.legs.filter((_, i) => i !== index),
+    }))
+  }
+
+  const updateLeg = (index: number, field: keyof ComboLeg, value: string | number | boolean) => {
+    setService(prev => ({
+      ...prev,
+      legs: prev.legs.map((leg, i) =>
+        i === index ? { ...leg, [field]: value } : leg
+      ),
+    }))
+  }
 
   const addExpense = () => {
-    setExpenses(prev => [...prev, { partner: '', amount: '' }])
-  }
-
-  const updateExpense = (index: number, field: 'partner' | 'amount', value: string) => {
-    setExpenses(prev => prev.map((exp, i) => i === index ? { ...exp, [field]: value } : exp))
+    setService(prev => ({
+      ...prev,
+      expenses: [...prev.expenses, { name: '', amount: 0 }],
+    }))
   }
 
   const removeExpense = (index: number) => {
-    setExpenses(prev => prev.filter((_, i) => i !== index))
+    setService(prev => ({
+      ...prev,
+      expenses: prev.expenses.filter((_, i) => i !== index),
+    }))
   }
 
-  const handleSave = () => {
-    console.log('Saved:', {
-      name,
-      category,
-      location,
-      mainPrice,
-      perPerson,
-      isCombo,
-      subServices,
-      description,
-      inclusions,
-      exclusions,
-      notesTemplate,
-      extras,
-      expenses,
-    })
-    alert('Υπηρεσία / Combo Package αποθηκεύτηκε! (mock)')
+  const updateExpense = (index: number, field: keyof Expense, value: string | number) => {
+    setService(prev => ({
+      ...prev,
+      expenses: prev.expenses.map((exp, i) =>
+        i === index ? { ...exp, [field]: value } : exp
+      ),
+    }))
+  }
+
+  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    const newPhotos = files.map(file => URL.createObjectURL(file))
+    setService(prev => ({
+      ...prev,
+      photos: [...prev.photos, ...newPhotos],
+    }))
+  }
+
+  const removePhoto = (index: number) => {
+    setService(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index),
+    }))
+  }
+
+  const calculateTotal = () => {
+    const base = service.price || 0
+    const extrasCost = service.extras.length * 20 // mock extra cost per item
+    const expensesTotal = service.expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0)
+    const commission = base * 0.15 // mock 15% commission
+    return (base + extrasCost + expensesTotal + commission).toFixed(2)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSaving(true)
+    // Mock save
+    setTimeout(() => {
+      console.log('Service saved:', service)
+      alert('Υπηρεσία αποθηκεύτηκε (mock)!')
+      setIsSaving(false)
+    }, 1500)
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200 px-8 py-6">
-        <h1 className="text-3xl font-bold text-slate-900">Νέα Υπηρεσία / Combo Package</h1>
-        <p className="text-slate-600 mt-1">Δημιουργία υπηρεσίας ή combo package</p>
-      </div>
+    <div className="min-h-screen bg-slate-50 p-8">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm p-8">
+        <h1 className="text-3xl font-bold text-slate-900 mb-8">Νέα Υπηρεσία / Πακέτο</h1>
 
-      <div className="p-8 max-w-5xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-8">
-          {/* Όνομα */}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Βασικά Στοιχεία */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Όνομα Υπηρεσίας</label>
+              <input
+                type="text"
+                name="name"
+                value={service.name}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="π.χ. Wine Tasting Tour"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Κατηγορία</label>
+              <select
+                name="category"
+                value={service.category}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Όνομα Υπηρεσίας / Package
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Airport Transfer ή Wine Tasting Tour"
-              className="w-full px-4 py-4 text-xl border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            <label className="block text-sm font-medium text-slate-700 mb-1">Περιγραφή</label>
+            <textarea
+              name="description"
+              value={service.description}
+              onChange={handleInputChange}
+              rows={4}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Λεπτομερής περιγραφή της υπηρεσίας..."
             />
           </div>
 
-          {/* Κατηγορία + Τοποθεσία */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Κατηγορία
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-4 border border-slate-300 rounded-lg"
-              >
-                <option>Transfers</option>
-                <option>Tours</option>
-                <option>Services</option>
-                <option>Activities</option>
-              </select>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Διάρκεια</label>
+              <input
+                type="text"
+                name="duration"
+                value={service.duration}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="π.χ. 4 ώρες / 1 ημέρα"
+                required
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Τοποθεσία
-              </label>
-              <select
-                value={location}
-                onChange={(e) => handleLocationChange(e.target.value)}
-                className="w-full px-4 py-4 border border-slate-300 rounded-lg"
-              >
-                <option>Athens</option>
-                <option>Mykonos</option>
-              </select>
-            </div>
-          </div>
 
-          {/* Τιμή Κύριας + Per Person */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Τιμή Κύριας Υπηρεσίας (€)
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Τιμή (€)</label>
               <input
                 type="number"
-                value={mainPrice}
-                onChange={(e) => setMainPrice(e.target.value)}
-                placeholder="80"
-                className="w-full px-4 py-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                name="price"
+                value={service.price}
+                onChange={handleNumberChange}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="450"
+                required
               />
-            </div>
-            <div className="flex items-center gap-3 mt-8">
-              <input
-                type="checkbox"
-                checked={perPerson}
-                onChange={(e) => setPerPerson(e.target.checked)}
-                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-slate-700">Τιμή ανά άτομο</span>
             </div>
           </div>
 
-          {/* Combo Package */}
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <input
-                type="checkbox"
-                checked={isCombo}
-                onChange={(e) => setIsCombo(e.target.checked)}
-                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-lg font-medium text-slate-700">Combo Package (πολλαπλές υπηρεσίες)</span>
-            </div>
-            {isCombo && (
-              <div>
-                <button 
-                  onClick={addSubService}
-                  className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2 mb-4"
-                >
-                  + Προσθήκη Υπηρεσίας στο Package
-                </button>
-                {subServices.map((service, index) => (
-                  <div key={index} className="flex items-center gap-4 mb-4">
-                    <select
-                      value={service}
-                      onChange={(e) => updateSubService(index, e.target.value)}
-                      className="flex-1 px-4 py-3 border border-slate-300 rounded-lg"
-                    >
-                      <option value="">Επιλέξτε υπηρεσία</option>
-                      {availableServices.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                    <button 
-                      onClick={() => removeSubService(index)}
+          {/* Combo */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={service.isCombo}
+              onChange={toggleCombo}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <label className="text-sm font-medium text-slate-700">Είναι Combo Υπηρεσία;</label>
+          </div>
+
+          {service.isCombo && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-bold text-slate-900">Legs του Combo</h3>
+              {service.legs.map((leg, index) => (
+                <div key={index} className="border border-slate-200 rounded-lg p-6 bg-slate-50">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium">Leg {index + 1}</h4>
+                    <button
+                      type="button"
+                      onClick={() => removeLeg(index)}
                       className="text-red-600 hover:text-red-700"
                     >
-                      ×
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Ώρα</label>
+                      <input
+                        type="time"
+                        value={leg.time}
+                        onChange={(e) => updateLeg(index, 'time', e.target.value)}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Υπηρεσία</label>
+                      <input
+                        type="text"
+                        value={leg.service}
+                        onChange={(e) => updateLeg(index, 'service', e.target.value)}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                        placeholder="π.χ. Wine Tasting"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Τιμή (€)</label>
+                      <input
+                        type="number"
+                        value={leg.price}
+                        onChange={(e) => updateLeg(index, 'price', Number(e.target.value))}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={leg.isExternal}
+                          onChange={(e) => updateLeg(index, 'isExternal', e.target.checked)}
+                          className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-slate-700">External</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {leg.isExternal && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Συνεργάτης</label>
+                        <input
+                          type="text"
+                          value={leg.externalPartner}
+                          onChange={(e) => updateLeg(index, 'externalPartner', e.target.value)}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Κόστος External (€)</label>
+                        <input
+                          type="number"
+                          value={leg.externalCost}
+                          onChange={(e) => updateLeg(index, 'externalCost', Number(e.target.value))}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addLeg}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Προσθήκη Νέου Leg
+              </button>
+            </div>
+          )}
+
+          {/* Έξοδα Υπηρεσίας */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-bold text-slate-900">Έξοδα Υπηρεσίας</h3>
+            {service.expenses.map((exp, index) => (
+              <div key={index} className="flex gap-6 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Όνομα Εξόδου</label>
+                  <input
+                    type="text"
+                    value={exp.name}
+                    onChange={(e) => updateExpense(index, 'name', e.target.value)}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                    placeholder="π.χ. Καύσιμα"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Ποσό (€)</label>
+                  <input
+                    type="number"
+                    value={exp.amount}
+                    onChange={(e) => updateExpense(index, 'amount', e.target.value)}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeExpense(index)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addExpense}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Προσθήκη Εξόδου
+            </button>
+
+            {/* Auto-calculate total */}
+            <div className="bg-slate-100 p-6 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-bold text-slate-900">Συνολικό Κόστος</span>
+                <span className="text-2xl font-bold text-green-600">€{calculateTotal()}</span>
+              </div>
+              <p className="text-sm text-slate-600 mt-2">
+                (Τιμή + Έξοδα + Commission)
+              </p>
+            </div>
+          </div>
+
+          {/* Upload Φωτογραφιών */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Φωτογραφίες Υπηρεσίας</h3>
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id="photo-upload"
+              />
+              <label
+                htmlFor="photo-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <ImagePlus className="w-12 h-12 text-slate-400" />
+                <span className="text-slate-600 font-medium">Drag & drop ή κλικ για upload</span>
+                <span className="text-sm text-slate-500">jpg, png (πολλαπλές)</span>
+              </label>
+            </div>
+
+            {service.photos.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {service.photos.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo}
+                      alt="preview"
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
@@ -225,153 +466,80 @@ export default function NewService() {
             )}
           </div>
 
-          {/* Περιγραφή */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Περιγραφή (copy-paste)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              placeholder="Πλήρης περιγραφή της υπηρεσίας..."
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-
-          {/* Inclusions / Exclusions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Περιλαμβάνονται (copy-paste)
-              </label>
-              <textarea
-                value={inclusions}
-                onChange={(e) => setInclusions(e.target.value)}
-                rows={6}
-                placeholder="- Μεταφορά\n- Χαιρετισμός..."
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Δεν Περιλαμβάνονται (copy-paste)
-              </label>
-              <textarea
-                value={exclusions}
-                onChange={(e) => setExclusions(e.target.value)}
-                rows={6}
-                placeholder="- Εισιτήρια εισόδου\n- Φιλοδωρήματα..."
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Notes Template */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Notes Template (copy-paste)
-            </label>
-            <textarea
-              value={notesTemplate}
-              onChange={(e) => setNotesTemplate(e.target.value)}
-              rows={4}
-              placeholder="Παραλαμβάνουμε από reception..."
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-
-          {/* Extras checkboxes */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Extras
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={extras.wheelchair}
-                  onChange={() => toggleExtra('wheelchair')}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span>Αναπηρικό Αμαξίδιο</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={extras.babySeat}
-                  onChange={() => toggleExtra('babySeat')}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span>Παιδικό Κάθισμα</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={extras.headphones}
-                  onChange={() => toggleExtra('headphones')}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span>Ακουστικά</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Partner Expenses */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <label className="text-sm font-medium text-slate-700">
-                Έξοδα Συνεργάτη {perPerson && '(ανά άτομο)'}
-              </label>
-              <button onClick={addExpense} className="text-blue-600 hover:text-blue-700 font-medium">
-                + Προσθήκη
-              </button>
-            </div>
-            {expenses.map((exp, index) => (
-              <div key={index} className="flex items-center gap-4 mb-4">
-                <select
-                  value={exp.partner}
-                  onChange={(e) => updateExpense(index, 'partner', e.target.value)}
-                  className="flex-1 px-4 py-3 border border-slate-300 rounded-lg"
-                >
-                  <option value="">Επιλέξτε συνεργάτη</option>
-                  {partners.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <input
-                  type="number"
-                  value={exp.amount}
-                  onChange={(e) => updateExpense(index, 'amount', e.target.value)}
-                  placeholder="Ποσό"
-                  className="w-32 px-4 py-3 border border-slate-300 rounded-lg"
-                />
-                <button 
-                  onClick={() => removeExpense(index)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Greeting Sign */}
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <p className="text-blue-900 font-medium">
-              Πινακίδα Χαιρετισμού: Υποχρεωτική (auto με όνομα Passenger's Leader)
-            </p>
-          </div>
-
-          {/* Save */}
-          <div className="text-right">
-            <button 
-              onClick={handleSave}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-12 rounded-xl shadow-lg transition-transform hover:scale-105"
+          {/* Preview & Save */}
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="flex-1 border border-blue-600 text-blue-600 font-bold py-4 rounded-lg hover:bg-blue-50 transition"
             >
-              Αποθήκευση
+              Προεπισκόπηση
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className={`flex-1 font-bold py-4 rounded-lg text-white transition ${
+                isSaving ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
+              } disabled:opacity-50 flex items-center justify-center gap-2`}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Αποθήκευση...
+                </>
+              ) : (
+                'Αποθήκευση Υπηρεσίας'
+              )}
             </button>
           </div>
-        </div>
+        </form>
       </div>
+
+      {/* Preview Modal */}
+      {previewOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full m-4 p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">Προεπισκόπηση Υπηρεσίας</h2>
+              <button onClick={() => setPreviewOpen(false)} className="text-slate-600 hover:text-slate-900">
+                <X className="w-8 h-8" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold">{service.name || 'Όνομα Υπηρεσίας'}</h3>
+              <p className="text-slate-600">{service.description || 'Περιγραφή...'}</p>
+              <p className="text-2xl font-bold text-green-600">€{service.price.toFixed(2)}</p>
+              <p><strong>Διάρκεια:</strong> {service.duration || '-'}</p>
+              <p><strong>Κατηγορία:</strong> {service.category}</p>
+
+              {service.photos.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {service.photos.map((photo, i) => (
+                    <img key={i} src={photo} alt="preview" className="w-full h-32 object-cover rounded-lg" />
+                  ))}
+                </div>
+              )}
+
+              {service.expenses.length > 0 && (
+                <div>
+                  <h4 className="font-bold mb-2">Έξοδα</h4>
+                  <ul className="space-y-1">
+                    {service.expenses.map((exp, i) => (
+                      <li key={i}>{exp.name}: €{exp.amount.toFixed(2)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="text-xl font-bold text-green-600 mt-6">
+                Συνολικό Κόστος: €{calculateTotal()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

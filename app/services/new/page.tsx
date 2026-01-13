@@ -51,6 +51,8 @@ export default function NewService() {
 
   const extrasList = ['Luggage', 'Baby Seat', 'Wheelchair', 'Headphones', 'VIP', 'Luxury']
 
+  const legServices = ['Airport Transfer', 'Wine Tasting', 'Day Trip', 'Mykonos Package', 'Hourly', 'Custom']
+
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -67,7 +69,7 @@ export default function NewService() {
     const { name, value } = e.target
     setService(prev => ({
       ...prev,
-      [name]: value ? Number(value) : 0,
+      [name]: value === '' ? 0 : Number(value),
     }))
   }
 
@@ -75,19 +77,10 @@ export default function NewService() {
     setService(prev => ({
       ...prev,
       isCombo: !prev.isCombo,
-      legs: !prev.isCombo
-        ? [
-            ...prev.legs,
-            {
-              time: '',
-              service: '',
-              price: 0,
-              isExternal: false,
-              externalPartner: '',
-              externalCost: 0,
-            },
-          ]
-        : [],
+      legs: !prev.isCombo ? [
+        ...prev.legs,
+        { time: '', service: '', price: 0, isExternal: false, externalPartner: '', externalCost: 0 },
+      ] : [],
     }))
   }
 
@@ -96,14 +89,7 @@ export default function NewService() {
       ...prev,
       legs: [
         ...prev.legs,
-        {
-          time: '',
-          service: '',
-          price: 0,
-          isExternal: false,
-          externalPartner: '',
-          externalCost: 0,
-        },
+        { time: '', service: '', price: 0, isExternal: false, externalPartner: '', externalCost: 0 },
       ],
     }))
   }
@@ -166,9 +152,9 @@ export default function NewService() {
 
   const calculateTotal = () => {
     const base = service.price || 0
-    const extrasCost = service.extras.length * 20 // mock extra cost per item
+    const extrasCost = service.extras.length * 20 // mock
     const expensesTotal = service.expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0)
-    const commission = base * 0.15 // mock 15% commission
+    const commission = base * 0.15 // mock 15%
     return (base + extrasCost + expensesTotal + commission).toFixed(2)
   }
 
@@ -299,22 +285,26 @@ export default function NewService() {
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Υπηρεσία</label>
-                      <input
-                        type="text"
+                      <select
                         value={leg.service}
                         onChange={(e) => updateLeg(index, 'service', e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
-                        placeholder="π.χ. Wine Tasting"
-                      />
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      >
+                        <option value="">Επιλέξτε Υπηρεσία</option>
+                        {legServices.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Τιμή (€)</label>
                       <input
                         type="number"
-                        value={leg.price}
-                        onChange={(e) => updateLeg(index, 'price', Number(e.target.value))}
+                        value={leg.price || ''}
+                        onChange={(e) => updateLeg(index, 'price', e.target.value ? Number(e.target.value) : 0)}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                        placeholder="0"
                       />
                     </div>
 
@@ -346,8 +336,8 @@ export default function NewService() {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Κόστος External (€)</label>
                         <input
                           type="number"
-                          value={leg.externalCost}
-                          onChange={(e) => updateLeg(index, 'externalCost', Number(e.target.value))}
+                          value={leg.externalCost || ''}
+                          onChange={(e) => updateLeg(index, 'externalCost', e.target.value ? Number(e.target.value) : 0)}
                           className="w-full px-4 py-3 border border-slate-300 rounded-lg"
                         />
                       </div>
@@ -386,9 +376,10 @@ export default function NewService() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Ποσό (€)</label>
                   <input
                     type="number"
-                    value={exp.amount}
-                    onChange={(e) => updateExpense(index, 'amount', e.target.value)}
+                    value={exp.amount || ''}
+                    onChange={(e) => updateExpense(index, 'amount', e.target.value ? Number(e.target.value) : 0)}
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                    placeholder="0"
                   />
                 </div>
                 <button

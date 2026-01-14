@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Upload, Eye, EyeOff } from 'lucide-react'
+import { FileText, Upload, Eye, EyeOff, Plus, X } from 'lucide-react'
 
 export default function NewPartner() {
   const [name, setName] = useState('')
@@ -22,6 +22,17 @@ export default function NewPartner() {
   const [referralType, setReferralType] = useState('percentage')
   const [referralValue, setReferralValue] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Νέα states για Tour Partners
+  const [isTourPartner, setIsTourPartner] = useState(false)
+  const [tourPartnerCost, setTourPartnerCost] = useState('')
+  const [tourPartnerPerPerson, setTourPartnerPerPerson] = useState(false)
+  const [tourPartnerExtras, setTourPartnerExtras] = useState<{ name: string; amount: string }[]>([])
+
+  // Νέα states για Licenced Tour Guides
+  const [isLicensedGuide, setIsLicensedGuide] = useState(false)
+  const [licensedGuideCost, setLicensedGuideCost] = useState('')
+  const [licensedGuideExtras, setLicensedGuideExtras] = useState<{ name: string; amount: string }[]>([])
 
   // Όλοι οι συνεργάτες – για referral dropdown
   const allPartners = [
@@ -59,8 +70,45 @@ export default function NewPartner() {
       referralType,
       referralValue,
       notes,
+      isTourPartner,
+      tourPartnerCost,
+      tourPartnerPerPerson,
+      tourPartnerExtras,
+      isLicensedGuide,
+      licensedGuideCost,
+      licensedGuideExtras,
     })
     alert('Συνεργάτης αποθηκεύτηκε με login credentials! (mock)')
+  }
+
+  // Handlers για Tour Partners extras
+  const addTourPartnerExtra = () => {
+    setTourPartnerExtras([...tourPartnerExtras, { name: '', amount: '' }])
+  }
+
+  const updateTourPartnerExtra = (index: number, field: 'name' | 'amount', value: string) => {
+    const newExtras = [...tourPartnerExtras]
+    newExtras[index][field] = value
+    setTourPartnerExtras(newExtras)
+  }
+
+  const removeTourPartnerExtra = (index: number) => {
+    setTourPartnerExtras(tourPartnerExtras.filter((_, i) => i !== index))
+  }
+
+  // Handlers για Licensed Guides extras
+  const addLicensedGuideExtra = () => {
+    setLicensedGuideExtras([...licensedGuideExtras, { name: '', amount: '' }])
+  }
+
+  const updateLicensedGuideExtra = (index: number, field: 'name' | 'amount', value: string) => {
+    const newExtras = [...licensedGuideExtras]
+    newExtras[index][field] = value
+    setLicensedGuideExtras(newExtras)
+  }
+
+  const removeLicensedGuideExtra = (index: number) => {
+    setLicensedGuideExtras(licensedGuideExtras.filter((_, i) => i !== index))
   }
 
   return (
@@ -303,6 +351,175 @@ export default function NewPartner() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Γραμμή Διαχωρισμού + Νέα Sections: Tour Partners & Licensed Tour Guides */}
+          <div className="border-t border-slate-200 pt-8">
+            <h3 className="text-xl font-bold text-slate-900 mb-6">Ειδικοί Συνεργάτες</h3>
+            <div className="space-y-8">
+              {/* Tour Partners */}
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="checkbox"
+                    checked={isTourPartner}
+                    onChange={(e) => setIsTourPartner(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-lg font-medium text-slate-700">Tour Partners</span>
+                </div>
+                {isTourPartner && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Έξοδο (€)
+                        </label>
+                        <input
+                          type="number"
+                          value={tourPartnerCost}
+                          onChange={(e) => setTourPartnerCost(e.target.value)}
+                          placeholder="150"
+                          className="w-full px-4 py-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 mt-6">
+                        <input
+                          type="checkbox"
+                          checked={tourPartnerPerPerson}
+                          onChange={(e) => setTourPartnerPerPerson(e.target.checked)}
+                          className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-slate-700">Ανά Άτομο</span>
+                      </div>
+                    </div>
+
+                    {/* Εξτρα Έξοδα για Tour Partners */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={addTourPartnerExtra}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 mb-4"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Εξτρα Έξοδα
+                      </button>
+                      {tourPartnerExtras.map((extra, index) => (
+                        <div key={index} className="flex gap-6 mb-4 items-end">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Όνομα Εξόδου
+                            </label>
+                            <input
+                              type="text"
+                              value={extra.name}
+                              onChange={(e) => updateTourPartnerExtra(index, 'name', e.target.value)}
+                              placeholder="π.χ. Εισιτήρια"
+                              className="w-full px-4 py-4 border border-slate-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Ποσό (€)
+                            </label>
+                            <input
+                              type="number"
+                              value={extra.amount}
+                              onChange={(e) => updateTourPartnerExtra(index, 'amount', e.target.value)}
+                              placeholder="20"
+                              className="w-full px-4 py-4 border border-slate-300 rounded-lg"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeTourPartnerExtra(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="w-6 h-6" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Licensed Tour Guides */}
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="checkbox"
+                    checked={isLicensedGuide}
+                    onChange={(e) => setIsLicensedGuide(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-lg font-medium text-slate-700">Licenced Tour Guides</span>
+                </div>
+                {isLicensedGuide && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Έξοδο (€)
+                      </label>
+                      <input
+                        type="number"
+                        value={licensedGuideCost}
+                        onChange={(e) => setLicensedGuideCost(e.target.value)}
+                        placeholder="100"
+                        className="w-full px-4 py-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Εξτρα Έξοδα για Licensed Guides */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={addLicensedGuideExtra}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 mb-4"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Εξτρα Έξοδα
+                      </button>
+                      {licensedGuideExtras.map((extra, index) => (
+                        <div key={index} className="flex gap-6 mb-4 items-end">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Όνομα Εξόδου
+                            </label>
+                            <input
+                              type="text"
+                              value={extra.name}
+                              onChange={(e) => updateLicensedGuideExtra(index, 'name', e.target.value)}
+                              placeholder="π.χ. Μετακίνηση"
+                              className="w-full px-4 py-4 border border-slate-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Ποσό (€)
+                            </label>
+                            <input
+                              type="number"
+                              value={extra.amount}
+                              onChange={(e) => updateLicensedGuideExtra(index, 'amount', e.target.value)}
+                              placeholder="30"
+                              className="w-full px-4 py-4 border border-slate-300 rounded-lg"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeLicensedGuideExtra(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="w-6 h-6" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Σημειώσεις */}

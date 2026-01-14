@@ -3,6 +3,12 @@
 import { useState, ChangeEvent, FormEvent } from 'react'
 import { Plus, X, ImagePlus, Loader2 } from 'lucide-react'
 
+interface PricingTier {
+  min: number
+  max: number | '∞'
+  price: number
+}
+
 interface ComboLeg {
   time: string
   service: string
@@ -27,6 +33,8 @@ interface Service {
   isCombo: boolean
   isPerPerson: boolean  // Νέο: αν η τιμή είναι per person
   defaultPassengers: number  // Νέο: default αριθμός ατόμων για calcs
+  useTieredPricing: boolean          // ΝΕΟ: ενεργοποίηση tiered
+  pricingTiers: PricingTier[]        // ΝΕΟ: τα εύρη τιμών
   legs: ComboLeg[]
   extras: { name: string; price: number }[]  // τιμή ανά extra
   expenses: Expense[]
@@ -43,6 +51,12 @@ export default function NewService() {
     isCombo: false,
     isPerPerson: false,
     defaultPassengers: 1,
+    useTieredPricing: false,
+    pricingTiers: [
+      { min: 1, max: 6, price: 70 },
+      { min: 7, max: 12, price: 140 },
+      { min: 13, max: '∞', price: 180 }
+    ],
     legs: [],
     extras: [],
     expenses: [],
@@ -116,6 +130,36 @@ export default function NewService() {
       ...prev,
       isPerPerson: !prev.isPerPerson,
       defaultPassengers: !prev.isPerPerson ? 1 : 1,  // reset to 1 if toggled off
+    }))
+  }
+
+  const toggleTieredPricing = () => {
+    setService(prev => ({
+      ...prev,
+      useTieredPricing: !prev.useTieredPricing,
+    }))
+  }
+
+  const addPricingTier = () => {
+    setService(prev => ({
+      ...prev,
+      pricingTiers: [...prev.pricingTiers, { min: 1, max: '∞', price: 0 }],
+    }))
+  }
+
+  const updatePricingTier = (index: number, field: 'min' | 'max' | 'price', value: number | string) => {
+    setService(prev => ({
+      ...prev,
+      pricingTiers: prev.pricingTiers.map((tier, i) =>
+        i === index ? { ...tier, [field]: value } : tier
+      ),
+    }))
+  }
+
+  const removePricingTier = (index: number) => {
+    setService(prev => ({
+      ...prev,
+      pricingTiers: prev.pricingTiers.filter((_, i) => i !== index),
     }))
   }
 
@@ -388,6 +432,90 @@ export default function NewService() {
               </div>
             </div>
           )}
+
+          {/* ────────────────────────────────────────────────
+               ΝΕΟ: Tiered Pricing (εύρη ατόμων) - προστέθηκε εδώ χωρίς να αλλάξει τίποτα πριν
+          ──────────────────────────────────────────────── */}
+          <div className="border-t border-slate-200 pt-8">
+            <div className="flex items-center gap-3 mb-4">
+              <input
+                type="checkbox"
+                checked={service.useTieredPricing}
+                onChange={toggleTieredPricing}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <label className="text-lg font-medium text-slate-700">
+                Χρήση τιμών βάσει εύρους ατόμων (Tiered Pricing)
+              </label>
+            </div>
+
+            {service.useTieredPricing && (
+              <div className="bg-slate-50 p-6 rounded-xl space-y-6">
+                <p className="text-sm text-slate-600">
+                  Ορίστε τα διαφορετικά εύρη ατόμων και τις αντίστοιχες τιμές. Αυτές θα χρησιμοποιηθούν αυτόματα στις κρατήσεις.
+                </p>
+
+                {service.pricingTiers.map((tier, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Από άτομα
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={tier.min}
+                        onChange={(e) => updatePricingTier(index, 'min', Number(e.target.value))}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Έως άτομα
+                      </label>
+                      <input
+                        type="text"
+                        value={tier.max}
+                        onChange={(e) => updatePricingTier(index, 'max', e.target.value)}
+                        placeholder="π.χ. 12 ή ∞"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Τιμή (€)
+                      </label>
+                      <input
+                        type="number"
+                        value={tier.price}
+                        onChange={(e) => updatePricingTier(index, 'price', Number(e.target.value))}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-right"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removePricingTier(index)}
+                      className="text-red-600 hover:text-red-700 self-end mb-2"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addPricingTier}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Προσθήκη νέου εύρους
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-end">
             <div className="flex items-center gap-3">
@@ -702,7 +830,7 @@ export default function NewService() {
             </div>
           </div>
 
-          {/* Upload Φωτογραφιών (ήδη υπάρχει, αλλά ενισχυμένο με καλύτερο UI) */}
+          {/* Upload Φωτογραφιών */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-900">Φωτογραφίες Υπηρεσίας</h3>
             <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">

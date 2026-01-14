@@ -10,6 +10,7 @@ interface ComboLeg {
   isExternal: boolean
   externalPartner: string
   externalCost: number
+  isExternalPerPerson: boolean  // Νέο: αν το external cost είναι per person
 }
 
 interface Expense {
@@ -24,8 +25,10 @@ interface Service {
   duration: string
   category: string
   isCombo: boolean
+  isPerPerson: boolean  // Νέο: αν η τιμή είναι per person
+  defaultPassengers: number  // Νέο: default αριθμός ατόμων για calcs
   legs: ComboLeg[]
-  extras: { name: string; price: number }[]  // προσθέσαμε τιμή για extras
+  extras: { name: string; price: number }[]  // τιμή ανά extra
   expenses: Expense[]
   photos: string[]
 }
@@ -38,16 +41,19 @@ export default function NewService() {
     duration: '',
     category: 'Transfer',
     isCombo: false,
+    isPerPerson: false,
+    defaultPassengers: 1,
     legs: [],
     extras: [],
     expenses: [],
     photos: [],
   })
 
-  // Νέα states από το NewBooking
+  // Νέα states από το NewBooking + additions
   const [isExternal, setIsExternal] = useState(false)
   const [externalPartner, setExternalPartner] = useState('')
   const [externalCost, setExternalCost] = useState(0)
+  const [isExternalPerPerson, setIsExternalPerPerson] = useState(false)  // Νέο για external cost per person
 
   const [b2bPartner, setB2bPartner] = useState('')
   const [commissionBase, setCommissionBase] = useState<'gross' | 'net'>('gross')
@@ -105,12 +111,20 @@ export default function NewService() {
     }))
   }
 
+  const togglePerPerson = () => {
+    setService(prev => ({
+      ...prev,
+      isPerPerson: !prev.isPerPerson,
+      defaultPassengers: !prev.isPerPerson ? 1 : 1,  // reset to 1 if toggled off
+    }))
+  }
+
   const toggleCombo = () => {
     setService(prev => ({
       ...prev,
       isCombo: !prev.isCombo,
       legs: !prev.isCombo ? [
-        { time: '', service: '', price: 0, isExternal: false, externalPartner: '', externalCost: 0 }
+        { time: '', service: '', price: 0, isExternal: false, externalPartner: '', externalCost: 0, isExternalPerPerson: false }
       ] : [],
     }))
   }
@@ -120,7 +134,7 @@ export default function NewService() {
       ...prev,
       legs: [
         ...prev.legs,
-        { time: '', service: '', price: 0, isExternal: false, externalPartner: '', externalCost: 0 },
+        { time: '', service: '', price: 0, isExternal: false, externalPartner: '', externalCost: 0, isExternalPerPerson: false },
       ],
     }))
   }
@@ -151,6 +165,7 @@ export default function NewService() {
     } else {
       setExternalPartner('')
       setExternalCost(0)
+      setIsExternalPerPerson(false)
     }
   }
 
@@ -158,6 +173,19 @@ export default function NewService() {
     setExternalPartner(partnerName)
     const partner = externalPartners.find(p => p.name === partnerName)
     setExternalCost(partner?.defaultCost || 0)
+  }
+
+  const toggleExternalPerPerson = () => {
+    setIsExternalPerPerson(!isExternalPerPerson)
+  }
+
+  const toggleLegExternalPerPerson = (index: number) => {
+    setService(prev => ({
+      ...prev,
+      legs: prev.legs.map((leg, i) =>
+        i === index ? { ...leg, isExternalPerPerson: !leg.isExternalPerPerson } : leg
+      ),
+    }))
   }
 
   const addExpense = () => {
@@ -201,16 +229,24 @@ export default function NewService() {
   }
 
   // ────────────────────────────────────────────────
-  // Οικονομικοί Υπολογισμοί (ίδια λογική με NewBooking)
+  // Οικονομικοί Υπολογισμοί (προσαρμοσμένοι με per person)
   // ────────────────────────────────────────────────
+  const passengers = service.defaultPassengers || 1  // Χρησιμοποιούμε default για preview/calcs
 
-  const grossRevenue = 
-    (service.price || 0) +
-    service.legs.reduce((sum, leg) => sum + (leg.price || 0), 0)
+  const baseRevenue = service.isPerPerson ? (service.price || 0) * passengers : (service.price || 0)
+
+  const legsRevenue = service.legs.reduce((sum, leg) => sum + (leg.price || 0) * (service.isPerPerson ? passengers : 1), 0)
+
+  const grossRevenue = baseRevenue + legsRevenue
+
+  const baseExternalCost = isExternal ? (isExternalPerPerson ? externalCost * passengers : externalCost) : 0
+
+  const legsExternalCost = service.legs.reduce((sum, leg) => 
+    sum + (leg.isExternal ? (leg.isExternalPerPerson ? (leg.externalCost || 0) * passengers : (leg.externalCost || 0)) : 0), 0)
 
   const totalExternalCost = 
-    (isExternal ? externalCost : 0) +
-    service.legs.reduce((sum, leg) => sum + (leg.isExternal ? (leg.externalCost || 0) : 0), 0) +
+    baseExternalCost +
+    legsExternalCost +
     service.expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0)
 
   const selectedB2b = partnersList.find(p => p.name === b2bPartner)
@@ -232,6 +268,7 @@ export default function NewService() {
       isExternal,
       externalPartner,
       externalCost,
+      isExternalPerPerson,
       b2bPartner,
       commissionBase,
       financials: {
@@ -326,17 +363,46 @@ export default function NewService() {
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={isExternal}
-                  onChange={toggleMainExternal}
+                  checked={service.isPerPerson}
+                  onChange={togglePerPerson}
                   className="w-5 h-5 text-blue-600 rounded"
                 />
-                <span className="text-slate-700 font-medium">Εξωτερικός</span>
+                <span className="text-slate-700 font-medium">Τιμή ανά Άτομο</span>
               </div>
             </div>
           </div>
 
-          {isExternal && (
+          {service.isPerPerson && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Default Αριθμός Ατόμων (για preview)</label>
+                <input
+                  type="number"
+                  name="defaultPassengers"
+                  value={service.defaultPassengers}
+                  onChange={handleNumberChange}
+                  min="1"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
+                  placeholder="1"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-end">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isExternal}
+                onChange={toggleMainExternal}
+                className="w-5 h-5 text-blue-600 rounded"
+              />
+              <span className="text-slate-700 font-medium">Εξωτερικός</span>
+            </div>
+          </div>
+
+          {isExternal && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 bg-slate-50 p-6 rounded-xl">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Εξωτερικός Συνεργάτης</label>
                 <select
@@ -358,6 +424,17 @@ export default function NewService() {
                   onChange={(e) => setExternalCost(Number(e.target.value))}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
                 />
+              </div>
+              <div className="flex items-end">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isExternalPerPerson}
+                    onChange={toggleExternalPerPerson}
+                    className="w-5 h-5 text-blue-600 rounded"
+                  />
+                  <span className="text-slate-700 font-medium">Κόστος ανά Άτομο</span>
+                </div>
               </div>
             </div>
           )}
@@ -474,7 +551,7 @@ export default function NewService() {
                   </div>
 
                   {leg.isExternal && (
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-6">
                       <div>
                         <label className="block text-sm font-medium mb-1">Συνεργάτης</label>
                         <select
@@ -496,6 +573,17 @@ export default function NewService() {
                           onChange={e => updateLeg(index, 'externalCost', Number(e.target.value))}
                           className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-right"
                         />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={leg.isExternalPerPerson}
+                            onChange={() => toggleLegExternalPerPerson(index)}
+                            className="w-5 h-5 text-blue-600 rounded"
+                          />
+                          <span className="text-slate-700 font-medium">Κόστος ανά Άτομο</span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -556,39 +644,39 @@ export default function NewService() {
 
             <div className="space-y-4">
               <div className="flex justify-between font-bold text-lg border-b pb-3">
-                <span>Έσοδα</span>
+                <span>Έσοδα {service.isPerPerson ? `(για ${passengers} άτομα)` : ''}</span>
                 <span>€{grossRevenue.toFixed(2)}</span>
               </div>
 
               <div className="space-y-2 pl-6 text-slate-700">
                 <div className="flex justify-between">
-                  <span>Βασική Τιμή</span>
-                  <span>+€{service.price.toFixed(2)}</span>
+                  <span>Βασική Τιμή {service.isPerPerson ? 'x ' + passengers : ''}</span>
+                  <span>+€{baseRevenue.toFixed(2)}</span>
                 </div>
                 {service.legs.map((leg, i) => (
                   <div key={i} className="flex justify-between">
-                    <span>Leg {i + 1}: {leg.service || '—'}</span>
-                    <span>+€{(leg.price || 0).toFixed(2)}</span>
+                    <span>Leg {i + 1}: {leg.service || '—'} {service.isPerPerson ? 'x ' + passengers : ''}</span>
+                    <span>+€{(service.isPerPerson ? (leg.price || 0) * passengers : (leg.price || 0)).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
 
               <div className="flex justify-between font-bold text-lg border-t pt-6 mt-4">
-                <span>Έξοδα</span>
+                <span>Έξοδα {service.isPerPerson ? `(για ${passengers} άτομα)` : ''}</span>
                 <span className="text-red-600">-€{(totalExternalCost + b2bCommission).toFixed(2)}</span>
               </div>
 
               <div className="space-y-2 pl-6">
                 {isExternal && (
                   <div className="flex justify-between text-red-600">
-                    <span>Εξωτερικός - {externalPartner}</span>
-                    <span>-€{externalCost.toFixed(2)}</span>
+                    <span>Εξωτερικός - {externalPartner} {isExternalPerPerson ? 'x ' + passengers : ''}</span>
+                    <span>-€{baseExternalCost.toFixed(2)}</span>
                   </div>
                 )}
                 {service.legs.filter(l => l.isExternal).map((leg, i) => (
                   <div key={i} className="flex justify-between text-red-600">
-                    <span>Leg {i + 1} - {leg.externalPartner}</span>
-                    <span>-€{leg.externalCost.toFixed(2)}</span>
+                    <span>Leg {i + 1} - {leg.externalPartner} {leg.isExternalPerPerson ? 'x ' + passengers : ''}</span>
+                    <span>-€{(leg.isExternalPerPerson ? (leg.externalCost || 0) * passengers : (leg.externalCost || 0)).toFixed(2)}</span>
                   </div>
                 ))}
                 {service.expenses.map((exp, i) => (
@@ -614,18 +702,56 @@ export default function NewService() {
             </div>
           </div>
 
-          {/* Photos + Submit */}
+          {/* Upload Φωτογραφιών (ήδη υπάρχει, αλλά ενισχυμένο με καλύτερο UI) */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold">Φωτογραφίες</h3>
-            {/* ... το upload section μένει ίδιο όπως πριν ... */}
-            {/* (δεν το επαναλαμβάνω για συντομία) */}
+            <h3 className="text-lg font-bold text-slate-900">Φωτογραφίες Υπηρεσίας</h3>
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id="photo-upload"
+              />
+              <label
+                htmlFor="photo-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <ImagePlus className="w-12 h-12 text-slate-400" />
+                <span className="text-slate-600 font-medium">Drag & drop ή κλικ για upload</span>
+                <span className="text-sm text-slate-500">jpg, png (πολλαπλές)</span>
+              </label>
+            </div>
+
+            {service.photos.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {service.photos.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo}
+                      alt="preview"
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Preview & Save */}
           <div className="flex gap-4">
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
-              className="flex-1 border border-blue-600 text-blue-600 py-4 rounded-lg hover:bg-blue-50"
+              className="flex-1 border border-blue-600 text-blue-600 font-bold py-4 rounded-lg hover:bg-blue-50 transition"
             >
               Προεπισκόπηση
             </button>
@@ -633,32 +759,67 @@ export default function NewService() {
             <button
               type="submit"
               disabled={isSaving}
-              className={`flex-1 py-4 rounded-lg text-white font-bold ${
-                isSaving ? 'bg-gray-500' : 'bg-green-600 hover:bg-green-700'
-              } flex items-center justify-center gap-2`}
+              className={`flex-1 font-bold py-4 rounded-lg text-white transition ${
+                isSaving ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
+              } disabled:opacity-50 flex items-center justify-center gap-2`}
             >
               {isSaving ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Αποθήκευση...
                 </>
-              ) : 'Αποθήκευση Υπηρεσίας'}
+              ) : (
+                'Αποθήκευση Υπηρεσίας'
+              )}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Preview Modal – μπορείς να το εμπλουτίσεις με τα οικονομικά */}
+      {/* Preview Modal */}
       {previewOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full m-4 p-8 max-h-[90vh] overflow-y-auto">
-            {/* ... υπάρχον preview ... */}
-            <p className="text-xl font-bold text-green-600 mt-6">
-              Καθαρό Κέρδος: €{netProfit.toFixed(2)}
-            </p>
-            <button onClick={() => setPreviewOpen(false)} className="mt-6 text-slate-600">
-              Κλείσιμο
-            </button>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">Προεπισκόπηση Υπηρεσίας</h2>
+              <button onClick={() => setPreviewOpen(false)} className="text-slate-600 hover:text-slate-900">
+                <X className="w-8 h-8" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold">{service.name || 'Όνομα Υπηρεσίας'}</h3>
+              <p className="text-slate-600">{service.description || 'Περιγραφή...'}</p>
+              <p className="text-2xl font-bold text-green-600">€{service.price.toFixed(2)} {service.isPerPerson ? 'ανά άτομο' : ''}</p>
+              <p><strong>Διάρκεια:</strong> {service.duration || '-'}</p>
+              <p><strong>Κατηγορία:</strong> {service.category}</p>
+
+              {service.photos.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {service.photos.map((photo, i) => (
+                    <img key={i} src={photo} alt="preview" className="w-full h-32 object-cover rounded-lg" />
+                  ))}
+                </div>
+              )}
+
+              {service.expenses.length > 0 && (
+                <div>
+                  <h4 className="font-bold mb-2">Έξοδα</h4>
+                  <ul className="space-y-1">
+                    {service.expenses.map((exp, i) => (
+                      <li key={i}>{exp.name}: €{exp.amount.toFixed(2)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="text-xl font-bold text-green-600 mt-6">
+                Συνολικό Κόστος: €{grossRevenue.toFixed(2)}
+              </p>
+              <p className="text-xl font-bold text-green-600">
+                Καθαρό Κέρδος: €{netProfit.toFixed(2)}
+              </p>
+            </div>
           </div>
         </div>
       )}

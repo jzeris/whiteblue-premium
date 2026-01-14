@@ -104,6 +104,19 @@ export default function RootLayout({
         <div className="fixed bottom-6 right-6 z-50">
           <FloatingAI />
         </div>
+
+        {/* ΝΕΟ: Κρύβει τα arrows από όλα τα input type="number" */}
+        <style jsx global>{`
+          input[type="number"]::-webkit-inner-spin-button,
+          input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+
+          input[type="number"] {
+            -moz-appearance: textfield;
+          }
+        `}</style>
       </body>
     </html>
   )

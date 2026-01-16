@@ -143,9 +143,7 @@ const menu: MenuItem[] = [
 ]
 
 export default function Sidebar() {
-  const [expanded, setExpanded] = useState<string[]>([
-    'Email + Marketing' // Αρχικά ανοιχτό το κύριο (προαιρετικά)
-  ])
+  const [expanded, setExpanded] = useState<string[]>([]) // ← ΕΔΩ Η ΑΛΛΑΓΗ: ΚΕΝΟ ARRAY → όλα κλειστά από default
 
   const toggleExpand = (label: string) => {
     setExpanded(prev =>

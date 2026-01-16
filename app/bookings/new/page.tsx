@@ -24,6 +24,8 @@ export default function NewBooking() {
   const [pickup, setPickup] = useState('Athens Airport')
   const [dropoff, setDropoff] = useState('Hotel Grande Bretagne')
   const [extraStops, setExtraStops] = useState<string[]>([])
+
+  // ΝΕΟ: Controlled state για αριθμό ατόμων
   const [passengers, setPassengers] = useState<number>(1)
 
   const availableServices = [
@@ -46,17 +48,29 @@ export default function NewBooking() {
     'Wine Tasting Tour': 450,
   }
 
+  // ΝΕΟ: Static tiers για κάθε υπηρεσία (προσομοίωση – αργότερα από DB)
   const serviceTiers: Record<string, { min: number; max: number | '∞'; price: number }[]> = {
     'Airport Transfer': [
       { min: 1, max: 6, price: 70 },
       { min: 7, max: 12, price: 140 },
       { min: 13, max: '∞', price: 180 },
     ],
-    'Mykonos Package': [
-      { min: 1, max: 4, price: 600 },
-      { min: 5, max: 8, price: 900 },
-      { min: 9, max: '∞', price: 1200 },
+    'Hourly': [
+      { min: 1, max: 4, price: 60 },
+      { min: 5, max: 8, price: 100 },
+      { min: 9, max: '∞', price: 140 },
     ],
+    'Day Trip': [
+      { min: 1, max: 6, price: 300 },
+      { min: 7, max: 12, price: 500 },
+      { min: 13, max: '∞', price: 700 },
+    ],
+    'Mykonos Package': [
+      { min: 1, max: 4, price: 800 },
+      { min: 5, max: 8, price: 1200 },
+      { min: 9, max: '∞', price: 1600 },
+    ],
+    // Προσθέστε tiers για Meet & Greet, Assistant, Wine Tasting Tour αν θέλετε
   }
 
   const comboLegs: Record<string, { service: string; price: number }[]> = {
@@ -89,9 +103,10 @@ export default function NewBooking() {
 
   const b2bOptions = partnersList.filter(p => p.type === 'B2B' || p.type === 'both')
 
+  // ΝΕΟ: Συνάρτηση που υπολογίζει τιμή βάσει tiers
   const getServicePrice = (serviceName: string, pax: number): number => {
     const tiers = serviceTiers[serviceName]
-    if (!tiers) return servicePrices[serviceName] || 0
+    if (!tiers) return servicePrices[serviceName] || 0 // fallback
 
     const matchingTier = tiers.find(tier => pax >= tier.min && (tier.max === '∞' || pax <= tier.max))
     return matchingTier ? matchingTier.price : servicePrices[serviceName] || 0
@@ -114,20 +129,41 @@ export default function NewBooking() {
         externalCost: 0 
       })))
     } else {
+      // ΝΕΟ: Υπολογισμός τιμής βάσει τρέχοντων ατόμων
       const calculatedPrice = getServicePrice(service, passengers)
       setMainPrice(calculatedPrice)
       setExtraLegs([])
     }
+
+    // ΝΕΟ: Ενημέρωση τιμών σε όλα τα extra services όταν αλλάζει η κύρια υπηρεσία
+    setExtraServices(prev => prev.map(s => ({
+      ...s,
+      price: getServicePrice(s.service, passengers)
+    })))
   }
 
+  // ΝΕΟ: Όταν αλλάζει ο αριθμός ατόμων → auto-update όλες οι τιμές
   const handlePassengersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPax = Math.max(1, Number(e.target.value) || 1)
     setPassengers(newPax)
 
+    // Update κύριας υπηρεσίας
     if (!comboLegs[mainService]) {
       const calculatedPrice = getServicePrice(mainService, newPax)
       setMainPrice(calculatedPrice)
     }
+
+    // Update extra legs
+    setExtraLegs(prev => prev.map(leg => ({
+      ...leg,
+      price: getServicePrice(leg.service, newPax)
+    })))
+
+    // Update extra services
+    setExtraServices(prev => prev.map(s => ({
+      ...s,
+      price: getServicePrice(s.service, newPax)
+    })))
   }
 
   const toggleMainExternal = () => {
@@ -176,9 +212,10 @@ export default function NewBooking() {
 
   const addExtraService = () => {
     const defaultService = availableServices[0]
+    const defaultPrice = getServicePrice(defaultService, passengers) // ΝΕΟ: με tiered
     setExtraServices([...extraServices, { 
       service: defaultService, 
-      price: servicePrices[defaultService] || 0, 
+      price: defaultPrice, 
       time: '', 
       isExternal: false, 
       externalPartner: '', 
@@ -194,7 +231,7 @@ export default function NewBooking() {
 
       if (field === 'service') {
         const serviceName = value as string
-        const newPrice = servicePrices[serviceName] || 0
+        const newPrice = getServicePrice(serviceName, passengers) // ΝΕΟ: με tiered
         return { ...s, service: serviceName, price: newPrice }
       } else if (field === 'price') {
         return { ...s, price: value as number }
@@ -314,7 +351,7 @@ export default function NewBooking() {
           )}
         </div>
 
-        {/* Λίστα Επιβατών */}
+        {/* Λίστα Επιβατών - ΤΕΛΙΚΗ ΔΙΟΡΘΩΜΕΝΗ ΕΜΦΑΝΙΣΗ */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-2xl font-bold text-slate-900 mb-6">Λίστα Επιβατών</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -328,6 +365,7 @@ export default function NewBooking() {
             </div>
           </div>
 
+          {/* Υπόλοιποι Επιβάτες - ΠΟΛΥ ΜΙΚΡΟΤΕΡΟ ΚΟΥΤΙ */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-1">Υπόλοιποι Επιβάτες (copy-paste)</label>
             <textarea 
@@ -337,6 +375,7 @@ export default function NewBooking() {
             />
           </div>
 
+          {/* Άτομα - Τηλέφωνο - Email - 50/50 χώρος */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Άτομα</label>
@@ -345,7 +384,7 @@ export default function NewBooking() {
                 value={passengers}
                 onChange={handlePassengersChange}
                 min="1"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none" // ΝΕΟ: κρύβει arrows
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none" // appearance-none βοηθάει
               />
             </div>
 
@@ -375,8 +414,8 @@ export default function NewBooking() {
 
           {/* ΝΕΟ: Hint για tiered pricing */}
           {serviceTiers[mainService] && (
-            <p className="text-sm text-blue-600 mt-2">
-              Η τιμή της κύριας υπηρεσίας υπολογίζεται αυτόματα βάσει αριθμού ατόμων (tiered pricing)
+            <p className="text-sm text-blue-600 mt-2 italic">
+              Η τιμή υπολογίζεται αυτόματα βάσει αριθμού ατόμων (tiered pricing)
             </p>
           )}
         </div>
@@ -413,14 +452,12 @@ export default function NewBooking() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Τιμή (€)</label>
-                  <div className="relative">
-                    <input 
-                      type="number" 
-                      value={mainPrice}
-                      onChange={(e) => setMainPrice(Number(e.target.value))}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
-                    />
-                  </div>
+                  <input 
+                    type="number" 
+                    value={mainPrice}
+                    onChange={(e) => setMainPrice(Number(e.target.value))}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
+                  />
                 </div>
                 <div className="flex items-end">
                   <div className="flex items-center gap-3">

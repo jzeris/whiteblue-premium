@@ -25,8 +25,7 @@ export default function NewBooking() {
   const [dropoff, setDropoff] = useState('Hotel Grande Bretagne')
   const [extraStops, setExtraStops] = useState<string[]>([])
 
-  // ΝΕΟ: Controlled state για αριθμό ατόμων
-  const [passengers, setPassengers] = useState<number>(1)
+  const [passengers, setPassengers] = useState<number>(0) // Default 0 (φαίνεται κενό)
 
   const availableServices = [
     'Airport Transfer',
@@ -48,7 +47,6 @@ export default function NewBooking() {
     'Wine Tasting Tour': 450,
   }
 
-  // ΝΕΟ: Static tiers για κάθε υπηρεσία (προσομοίωση – αργότερα από DB)
   const serviceTiers: Record<string, { min: number; max: number | '∞'; price: number }[]> = {
     'Airport Transfer': [
       { min: 1, max: 6, price: 70 },
@@ -103,10 +101,10 @@ export default function NewBooking() {
 
   const b2bOptions = partnersList.filter(p => p.type === 'B2B' || p.type === 'both')
 
-  // ΝΕΟ: Συνάρτηση που υπολογίζει τιμή βάσει tiers
+  // Συνάρτηση που υπολογίζει τιμή βάσει tiers
   const getServicePrice = (serviceName: string, pax: number): number => {
     const tiers = serviceTiers[serviceName]
-    if (!tiers) return servicePrices[serviceName] || 0 // fallback
+    if (!tiers) return servicePrices[serviceName] || 0
 
     const matchingTier = tiers.find(tier => pax >= tier.min && (tier.max === '∞' || pax <= tier.max))
     return matchingTier ? matchingTier.price : servicePrices[serviceName] || 0
@@ -129,41 +127,40 @@ export default function NewBooking() {
         externalCost: 0 
       })))
     } else {
-      // ΝΕΟ: Υπολογισμός τιμής βάσει τρέχοντων ατόμων
       const calculatedPrice = getServicePrice(service, passengers)
       setMainPrice(calculatedPrice)
       setExtraLegs([])
     }
 
-    // ΝΕΟ: Ενημέρωση τιμών σε όλα τα extra services όταν αλλάζει η κύρια υπηρεσία
+    // Ενημέρωση τιμών σε όλα τα extra services
     setExtraServices(prev => prev.map(s => ({
       ...s,
       price: getServicePrice(s.service, passengers)
     })))
   }
 
-  // ΝΕΟ: Όταν αλλάζει ο αριθμός ατόμων → auto-update όλες οι τιμές
   const handlePassengersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPax = Math.max(1, Number(e.target.value) || 1)
-    setPassengers(newPax)
-
-    // Update κύριας υπηρεσίας
-    if (!comboLegs[mainService]) {
-      const calculatedPrice = getServicePrice(mainService, newPax)
-      setMainPrice(calculatedPrice)
+    const val = e.target.value
+    if (val === '') {
+      setPassengers(0)
+      return
     }
-
-    // Update extra legs
-    setExtraLegs(prev => prev.map(leg => ({
-      ...leg,
-      price: getServicePrice(leg.service, newPax)
-    })))
-
-    // Update extra services
-    setExtraServices(prev => prev.map(s => ({
-      ...s,
-      price: getServicePrice(s.service, newPax)
-    })))
+    if (/^\d+$/.test(val)) { // Μόνο ψηφία
+      const num = Number(val)
+      setPassengers(num)
+      // Update τιμές
+      if (!comboLegs[mainService]) {
+        setMainPrice(getServicePrice(mainService, num))
+      }
+      setExtraLegs(prev => prev.map(leg => ({
+        ...leg,
+        price: getServicePrice(leg.service, num)
+      })))
+      setExtraServices(prev => prev.map(s => ({
+        ...s,
+        price: getServicePrice(s.service, num)
+      })))
+    }
   }
 
   const toggleMainExternal = () => {
@@ -212,7 +209,7 @@ export default function NewBooking() {
 
   const addExtraService = () => {
     const defaultService = availableServices[0]
-    const defaultPrice = getServicePrice(defaultService, passengers) // ΝΕΟ: με tiered
+    const defaultPrice = getServicePrice(defaultService, passengers)
     setExtraServices([...extraServices, { 
       service: defaultService, 
       price: defaultPrice, 
@@ -231,7 +228,7 @@ export default function NewBooking() {
 
       if (field === 'service') {
         const serviceName = value as string
-        const newPrice = getServicePrice(serviceName, passengers) // ΝΕΟ: με tiered
+        const newPrice = getServicePrice(serviceName, passengers)
         return { ...s, service: serviceName, price: newPrice }
       } else if (field === 'price') {
         return { ...s, price: value as number }
@@ -375,16 +372,41 @@ export default function NewBooking() {
             />
           </div>
 
-          {/* Άτομα - Τηλέφωνο - Email - 50/50 χώρος */}
+          {/* Άτομα - Τηλέφωνο - Email */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Άτομα</label>
               <input 
-                type="number"
-                value={passengers}
-                onChange={handlePassengersChange}
-                min="1"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none" // appearance-none βοηθάει
+                type="text" 
+                inputMode="numeric" 
+                pattern="[0-9]*" 
+                value={passengers === 0 ? '' : passengers} 
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val === '') {
+                    setPassengers(0)
+                    return
+                  }
+                  if (/^\d+$/.test(val)) {
+                    const num = Number(val)
+                    setPassengers(num)
+                    // Update τιμές
+                    if (!comboLegs[mainService]) {
+                      setMainPrice(getServicePrice(mainService, num))
+                    }
+                    setExtraLegs(prev => prev.map(leg => ({
+                      ...leg,
+                      price: getServicePrice(leg.service, num)
+                    })))
+                    setExtraServices(prev => prev.map(s => ({
+                      ...s,
+                      price: getServicePrice(s.service, num)
+                    })))
+                  }
+                }}
+                onWheel={(e) => e.preventDefault()} // Εξασφαλίζει ότι η ροδέλα ΔΕΝ αλλάζει τίποτα
+                placeholder="0"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
 

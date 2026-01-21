@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import { DollarSign, Edit2, Trash2, Plus, ChevronDown, X } from 'lucide-react'
+import { DollarSign, Edit2, Trash2, Plus, X } from 'lucide-react'
 
 // Σταθερές μήνες (ίδιες πάντα)
 const months = [
@@ -100,7 +100,7 @@ export default function Expenses() {
     setExpenses(expensesData)
   }, [])
 
-  const selectedKey = selectedDate
+  const selectedKey = selectedDate instanceof Date
     ? `${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
     : `${months[0]} ${new Date().getFullYear()}`
 
@@ -192,14 +192,16 @@ export default function Expenses() {
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Πάγια Έξοδα Εταιρείας</h1>
             <p className="text-slate-600 mt-1">
-              {selectedDate ? `${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}` : 'Επιλέξτε μήνα'}
+              {selectedDate instanceof Date
+                ? `${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
+                : 'Επιλέξτε μήνα'}
             </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
               <DatePicker
                 selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)} // ΔΙΟΡΘΩΜΕΝΟ: χωρίς τύπο – TS το συμπεραίνει σωστά
+                onChange={setSelectedDate} // ← ΤΕΛΙΚΗ ΔΙΟΡΘΩΣΗ: χωρίς arrow function, χωρίς τύπο – ο TS το δέχεται άψογα
                 showMonthYearPicker
                 dateFormat="MMMM yyyy"
                 className="bg-white border border-slate-300 rounded-lg px-6 py-3 text-lg font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"

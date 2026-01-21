@@ -14,8 +14,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-type JobStatus = 'pending' | 'upcoming' | 'inprogress'
-type ActionStatus = 'started' | 'delayed'
+type JobStatus = 'pending' | 'upcoming' | 'inprogress' | 'picked_up' | 'en_route_dropoff' | 'completed'
+type ActionStatus = 'accept' | 'started' | 'arrived' | 'picked_up' | 'completed' | 'delayed'
+
 type Extra = 'luggage' | 'headphones' | 'baby' | 'wheelchair'
 
 interface Job {
@@ -31,6 +32,7 @@ interface Job {
   liveLink: string
   eta: string
   reviewLink: string
+  b2bPartner?: string // για B2B μήνυμα
 }
 
 export default function DriverDashboard() {
@@ -53,6 +55,7 @@ export default function DriverDashboard() {
         liveLink: 'https://maps.google.com/track/123',
         eta: '15 λεπτά',
         reviewLink: 'https://review.whiteblue.xyz/19074',
+        b2bPartner: 'Grande Bretagne',
       },
       {
         id: '19075',
@@ -67,44 +70,103 @@ export default function DriverDashboard() {
         liveLink: 'https://maps.google.com/track/456',
         eta: '20 λεπτά',
         reviewLink: 'https://review.whiteblue.xyz/19075',
+        b2bPartner: 'Blue Villas',
       },
     ],
     upcoming: [],
     inprogress: [],
+    picked_up: [],
+    en_route_dropoff: [],
+    completed: [],
   })
 
   const currentJobs = jobs[activeTab]
 
-  const handleStatusChange = (e: React.MouseEvent, jobId: string, action: ActionStatus) => {
+  const sendNotification = (job: Job, action: string) => {
+    const clientMsg = `Mock: Μήνυμα στον πελάτη ${job.client} για ${action} (#${job.id})`
+    const b2bMsg = job.b2bPartner ? `Mock: Μήνυμα στον B2B ${job.b2bPartner} για ${action} (#${job.id})` : ''
+    alert(clientMsg + (b2bMsg ? '\n' + b2bMsg : ''))
+    console.log(clientMsg, b2bMsg)
+  }
+
+  const handleAction = (e: React.MouseEvent, jobId: string, action: ActionStatus) => {
     e.stopPropagation()
     e.preventDefault()
     if (offDuty) return
 
-    if (action === 'started') {
-      setCountdownJobId(jobId)
-      const timer = setTimeout(() => {
-        setCountdownJobId(null)
-        setJobs(prev => {
-          const job = prev.pending.find(j => j.id === jobId) || prev.inprogress.find(j => j.id === jobId)
-          if (!job) return prev
-          const clean = (list: Job[]) => list.filter(j => j.id !== jobId)
-          return {
-            ...prev,
-            pending: clean(prev.pending),
-            inprogress: [...prev.inprogress, job],
-          }
-        })
-        alert(`Ξεκίνησα για ${jobId}`)
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
+    setCountdownJobId(jobId)
 
-    alert(`Καθυστέρησα για ${jobId}`)
+    const timer = setTimeout(() => {
+      setCountdownJobId(null)
+      setJobs(prev => {
+        const job = prev.pending.find(j => j.id === jobId) ||
+                    prev.upcoming.find(j => j.id === jobId) ||
+                    prev.inprogress.find(j => j.id === jobId) ||
+                    prev.picked_up.find(j => j.id === jobId) ||
+                    prev.en_route_dropoff.find(j => j.id === jobId)
+
+        if (!job) return prev
+
+        const clean = (list: Job[]) => list.filter(j => j.id !== jobId)
+
+        let updated: Record<JobStatus, Job[]> = {
+          pending: clean(prev.pending),
+          upcoming: clean(prev.upcoming),
+          inprogress: clean(prev.inprogress),
+          picked_up: clean(prev.picked_up),
+          en_route_dropoff: clean(prev.en_route_dropoff),
+          completed: clean(prev.completed),
+        }
+
+        let nextStatus: JobStatus | null = null
+        let message = ''
+
+        switch (action) {
+          case 'accept':
+            nextStatus = 'upcoming'
+            message = 'Accept'
+            break
+          case 'started':
+            nextStatus = 'inprogress'
+            message = 'Ξεκίνησα'
+            break
+          case 'arrived':
+            nextStatus = 'picked_up'
+            message = 'Έφτασα στο PU'
+            break
+          case 'picked_up':
+            nextStatus = 'en_route_dropoff'
+            message = 'Παρέλαβα τον πελάτη'
+            break
+          case 'completed':
+            nextStatus = 'completed'
+            message = 'Ολοκλήρωσα'
+            break
+          case 'delayed':
+            message = 'Καθυστέρησα'
+            break
+        }
+
+        if (nextStatus) {
+          updated[nextStatus].push(job)
+        }
+
+        if (message) sendNotification(job, message)
+
+        return updated
+      })
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }
+
+  const cancelCountdown = () => {
+    setCountdownJobId(null)
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header – flat γκρι bar, ίδια χρώματα */}
+      {/* Header */}
       <header className="bg-gray-800 text-white px-4 py-3 flex items-center justify-between shadow">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
@@ -129,29 +191,34 @@ export default function DriverDashboard() {
         </div>
       </header>
 
-      {/* Tabs – flat, minimal, ίδια χρώματα */}
-      <div className="flex border-b bg-white">
-        {(['pending', 'upcoming', 'inprogress'] as JobStatus[]).map(tab => (
+      {/* Tabs – 5 tabs τώρα */}
+      <div className="flex border-b bg-white overflow-x-auto">
+        {(['pending', 'upcoming', 'inprogress', 'picked_up', 'completed'] as JobStatus[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-3.5 text-sm font-medium text-center transition-colors ${
+            className={`flex-1 min-w-[100px] py-3.5 text-sm font-medium text-center transition-colors ${
               activeTab === tab
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            {tab.toUpperCase()}
+            {tab === 'picked_up' ? 'PICKED UP' : tab === 'completed' ? 'COMPLETED' : tab.toUpperCase()}
             {tab === 'pending' && jobs.pending.length > 0 && (
               <span className="ml-1.5 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
                 {jobs.pending.length}
+              </span>
+            )}
+            {tab === 'completed' && jobs.completed.length > 0 && (
+              <span className="ml-1.5 bg-gray-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {jobs.completed.length}
               </span>
             )}
           </button>
         ))}
       </div>
 
-      {/* Content – flat & clean */}
+      {/* Content */}
       <div className="flex-1 p-4 overflow-y-auto">
         {currentJobs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
@@ -164,7 +231,7 @@ export default function DriverDashboard() {
                 E
               </div>
             </div>
-            <p className="text-lg font-medium">No trips in-progress.</p>
+            <p className="text-lg font-medium">No trips in this category.</p>
           </div>
         ) : (
           currentJobs.map(job => (
@@ -191,31 +258,151 @@ export default function DriverDashboard() {
                     </div>
                   )}
 
-                  <div className="flex gap-4 mt-6">
-                    <button
-                      disabled={offDuty || countdownJobId === job.id}
-                      onClick={(e) => handleStatusChange(e, job.id, 'started')}
-                      className={`flex-1 py-5 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-3 shadow-sm
-                        ${countdownJobId === job.id ? 'bg-green-400 cursor-wait' : 'bg-green-600 hover:bg-green-700 active:scale-[0.98]'}`}
-                    >
-                      {countdownJobId === job.id ? (
-                        <>
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                          3...
-                        </>
-                      ) : (
-                        'ΞΕΚΙΝΗΣΑ'
-                      )}
-                    </button>
+                  {/* Κουμπιά ανάλογα με tab */}
+                  <div className="flex flex-wrap gap-4 mt-6">
+                    {activeTab === 'pending' && (
+                      <button
+                        disabled={countdownJobId === job.id}
+                        onClick={(e) => handleAction(e, job.id, 'accept')}
+                        className={`flex-1 min-w-[120px] py-5 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-3 shadow-sm
+                          ${countdownJobId === job.id ? 'bg-blue-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                      >
+                        {countdownJobId === job.id ? (
+                          <>
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            3...
+                          </>
+                        ) : (
+                          'ACCEPT'
+                        )}
+                      </button>
+                    )}
 
-                    <button
-                      disabled={offDuty}
-                      onClick={(e) => handleStatusChange(e, job.id, 'delayed')}
-                      className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-5 rounded-xl font-bold text-lg transition-all active:scale-[0.98] shadow-sm"
-                    >
-                      ΚΑΘΥΣΤΕΡΩ
-                    </button>
+                    {activeTab === 'upcoming' && (
+                      <>
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'started')}
+                          className={`flex-1 min-w-[120px] py-5 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-3 shadow-sm
+                            ${countdownJobId === job.id ? 'bg-green-400 cursor-wait' : 'bg-green-600 hover:bg-green-700 active:scale-95'}`}
+                        >
+                          {countdownJobId === job.id ? (
+                            <>
+                              <Loader2 className="w-6 h-6 animate-spin" />
+                              3...
+                            </>
+                          ) : (
+                            'ΞΕΚΙΝΗΣΑ'
+                          )}
+                        </button>
+
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'delayed')}
+                          className="flex-1 min-w-[120px] bg-orange-500 hover:bg-orange-600 text-white py-5 rounded-xl font-bold text-lg transition-all active:scale-95 shadow-sm"
+                        >
+                          ΚΑΘΥΣΤΕΡΩ
+                        </button>
+                      </>
+                    )}
+
+                    {activeTab === 'inprogress' && (
+                      <>
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'arrived')}
+                          className={`flex-1 min-w-[120px] py-5 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-3 shadow-sm
+                            ${countdownJobId === job.id ? 'bg-indigo-400 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}
+                        >
+                          {countdownJobId === job.id ? (
+                            <>
+                              <Loader2 className="w-6 h-6 animate-spin" />
+                              3...
+                            </>
+                          ) : (
+                            'ΈΦΤΑΣΑ'
+                          )}
+                        </button>
+
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'delayed')}
+                          className="flex-1 min-w-[120px] bg-orange-500 hover:bg-orange-600 text-white py-5 rounded-xl font-bold text-lg transition-all active:scale-95 shadow-sm"
+                        >
+                          ΚΑΘΥΣΤΕΡΩ
+                        </button>
+                      </>
+                    )}
+
+                    {activeTab === 'picked_up' && (
+                      <>
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'picked_up')}
+                          className={`flex-1 min-w-[120px] py-5 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-3 shadow-sm
+                            ${countdownJobId === job.id ? 'bg-teal-400 cursor-wait' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'}`}
+                        >
+                          {countdownJobId === job.id ? (
+                            <>
+                              <Loader2 className="w-6 h-6 animate-spin" />
+                              3...
+                            </>
+                          ) : (
+                            'ΠΑΡΕΛΑΒΑ'
+                          )}
+                        </button>
+
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'delayed')}
+                          className="flex-1 min-w-[120px] bg-orange-500 hover:bg-orange-600 text-white py-5 rounded-xl font-bold text-lg transition-all active:scale-95 shadow-sm"
+                        >
+                          ΚΑΘΥΣΤΕΡΩ
+                        </button>
+                      </>
+                    )}
+
+                    {activeTab === 'en_route_dropoff' && (
+                      <>
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'completed')}
+                          className={`flex-1 min-w-[120px] py-5 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-3 shadow-sm
+                            ${countdownJobId === job.id ? 'bg-purple-400 cursor-wait' : 'bg-purple-600 hover:bg-purple-700 active:scale-95'}`}
+                        >
+                          {countdownJobId === job.id ? (
+                            <>
+                              <Loader2 className="w-6 h-6 animate-spin" />
+                              3...
+                            </>
+                          ) : (
+                            'ΟΛΟΚΛΗΡΩΣΑ'
+                          )}
+                        </button>
+
+                        <button
+                          disabled={countdownJobId === job.id}
+                          onClick={(e) => handleAction(e, job.id, 'delayed')}
+                          className="flex-1 min-w-[120px] bg-orange-500 hover:bg-orange-600 text-white py-5 rounded-xl font-bold text-lg transition-all active:scale-95 shadow-sm"
+                        >
+                          ΚΑΘΥΣΤΕΡΩ
+                        </button>
+                      </>
+                    )}
+
+                    {activeTab === 'completed' && (
+                      <p className="text-center text-gray-500 w-full py-4 font-medium">Ολοκληρώθηκε</p>
+                    )}
                   </div>
+
+                  {countdownJobId === job.id && (
+                    <button
+                      onClick={cancelCountdown}
+                      className="mt-3 w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-medium transition"
+                    >
+                      ΑΚΥΡΩΣΗ
+                    </button>
+                  )}
                 </div>
               </div>
             </Link>
@@ -223,7 +410,7 @@ export default function DriverDashboard() {
         )}
       </div>
 
-      {/* Bottom Navigation – flat, με labels */}
+      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 shadow-lg z-50">
         <Link href="/driver" className="text-blue-600 flex flex-col items-center">
           <Home className="w-7 h-7" />

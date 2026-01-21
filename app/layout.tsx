@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { usePathname } from 'next/navigation' // ← ΝΕΟ: για να δούμε το path
+import { Geist, Geist_Mono } from "next/font/google"
+import "./globals.css"
 import FloatingAI from '@/components/ai/FloatingAI'
 import FloatingNotifications from '@/components/notifications/FloatingNotifications'
 import Sidebar from '@/components/sidebar/Sidebar'
@@ -12,19 +13,23 @@ import Link from 'next/link'
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-});
+})
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
+})
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   const [showMenu, setShowMenu] = useState(false)
+  const pathname = usePathname() // ← ΝΕΟ: παίρνει το τρέχον path
+
+  // Κρύβουμε sidebar ΜΟΝΟ στο Driver App (/driver ή /driver/οτιδήποτε)
+  const hideSidebar = pathname === '/driver' || pathname?.startsWith('/driver/')
 
   const shareDriverApp = () => {
     const url = "https://whiteblue-premium.vercel.app/driver"
@@ -36,7 +41,6 @@ export default function RootLayout({
         .then(() => console.log("Shared successfully"))
         .catch((error) => console.log("Share failed", error))
     } else {
-      // Fallback: copy link
       navigator.clipboard.writeText(url)
       alert("Το link αντιγράφηκε! Στείλε το στους οδηγούς σου.")
     }
@@ -48,10 +52,11 @@ export default function RootLayout({
     <html lang="el">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="min-h-screen flex">
-          <Sidebar />
+          {/* Sidebar – εμφανίζεται ΜΟΝΟ αν ΔΕΝ είμαστε στο Driver App */}
+          {!hideSidebar && <Sidebar />}
 
           <div className="flex-1">
-            {/* Header */}
+            {/* Header – μένει ίδιος */}
             <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
               <Link href="/" className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
@@ -83,8 +88,6 @@ export default function RootLayout({
                         <Share2 className="w-5 h-5 text-slate-600" />
                         <span className="text-slate-800 font-medium">Κοινοποίηση Driver App</span>
                       </button>
-
-                      {/* Μπορείς να προσθέσεις κι άλλες επιλογές εδώ αργότερα */}
                     </div>
                   )}
                 </div>
@@ -105,7 +108,7 @@ export default function RootLayout({
           <FloatingAI />
         </div>
 
-        {/* ΝΕΟ: Κρύβει τα arrows από όλα τα input type="number" */}
+        {/* Κρύβει arrows από input type="number" – μένει ίδιο */}
         <style jsx global>{`
           input[type="number"]::-webkit-inner-spin-button,
           input[type="number"]::-webkit-outer-spin-button {

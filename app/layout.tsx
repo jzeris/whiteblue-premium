@@ -31,6 +31,9 @@ export default function RootLayout({
   // Κρύβουμε sidebar ΜΟΝΟ στο Driver App (/driver ή /driver/οτιδήποτε)
   const hideSidebar = pathname === '/driver' || pathname?.startsWith('/driver/')
 
+  // Κρύβουμε floating AI + Notifications στο B2B portal
+  const isB2B = pathname?.startsWith('/b2b') || false
+
   const shareDriverApp = () => {
     const url = "https://whiteblue-premium.vercel.app/driver"
     const title = "WhiteBlue Driver App"
@@ -100,13 +103,18 @@ export default function RootLayout({
           </div>
         </div>
 
-        <div className="fixed bottom-6 right-24 z-50">
-          <FloatingNotifications />
-        </div>
+        {/* Floating components – κρύβονται στο B2B portal */}
+        {!isB2B && (
+          <>
+            <div className="fixed bottom-6 right-24 z-50">
+              <FloatingNotifications />
+            </div>
 
-        <div className="fixed bottom-6 right-6 z-50">
-          <FloatingAI />
-        </div>
+            <div className="fixed bottom-6 right-6 z-50">
+              <FloatingAI />
+            </div>
+          </>
+        )}
 
         {/* Κρύβει arrows από input type="number" – μένει ίδιο */}
         <style jsx global>{`

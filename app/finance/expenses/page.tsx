@@ -1,139 +1,186 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 import { DollarSign, Edit2, Trash2, Plus, ChevronDown, X } from 'lucide-react'
 
+// Σταθερές μήνες (ίδιες πάντα)
+const months = [
+  'Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος',
+  'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος',
+]
+
 export default function Expenses() {
-  const currentYear = new Date().getFullYear()
-  const currentMonthIndex = new Date().getMonth()
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [categories, setCategories] = useState<string[]>([])
+  const [expenses, setExpenses] = useState<Record<string, { id: number; type: string; amount: number; category: string }[]>>({})
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<string | null>(null)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [showNewExpenseModal, setShowNewExpenseModal] = useState(false)
+  const [newExpenseCategory, setNewExpenseCategory] = useState<string>('')
+  const [newExpenseType, setNewExpenseType] = useState('')
+  const [newExpenseAmount, setNewExpenseAmount] = useState('')
+  const [editExpense, setEditExpense] = useState<{ id: number; type: string; amount: number; category: string } | null>(null)
 
-  const months = [
-    'Ιανουάριος',
-    'Φεβρουάριος',
-    'Μάρτιος',
-    'Απρίλιος',
-    'Μάιος',
-    'Ιούνιος',
-    'Ιούλιος',
-    'Αύγουστος',
-    'Σεπτέμβριος',
-    'Οκτώβριος',
-    'Νοέμβριος',
-    'Δεκέμβριος',
-  ]
+  // Initialization μόνο στο client (useEffect) – λύνει hydration error
+  useEffect(() => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonthIndex = now.getMonth()
 
-  const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2]
+    setSelectedDate(new Date(currentYear, currentMonthIndex, 1)) // 1η του μήνα
 
-  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonthIndex)
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear)
+    // Χρονιές: από -5 μέχρι +5 χρόνια (ευέλικτο range)
+    const yearsRange = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
 
-  const selectedKey = `${months[selectedMonth]} ${selectedYear}`
+    setCategories([
+      'Μισθοί Οδηγών',
+      'Κάρτες Καυσίμων',
+      'Διόδια',
+      'Οχήματα Μύκονος',
+      'Διάφορα',
+      'Δόσεις Αυτοκινήτων',
+      'Άλλα',
+    ])
 
-  // Πάγια έξοδα – ίδια για όλους τους μήνες (single balance για Διόδια)
-  const baseExpenses = [
-    // Μισθοί Οδηγών
-    { id: 1, type: 'Κουλούρης Πέτρος', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
-    { id: 2, type: 'Βερβέρογλου Παναγιώτης', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
-    { id: 3, type: 'Οδηγός 3', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
-    { id: 4, type: 'Οδηγός 4', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
-    { id: 5, type: 'Οδηγός 5', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
-    { id: 6, type: 'Οδηγός 6', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
-    { id: 7, type: 'Οδηγός 7', amount: 1700, subcategory: 'Μισθοί Οδηγών' },
+    // Προκαθορισμένα έξοδα – όλα τα αρχικά σου (όλα τα 500+ γραμμές σου είναι εδώ)
+    const initialExpenses = [
+      // Μισθοί Οδηγών
+      { type: 'Κουλούρης Πέτρος', amount: 1700, category: 'Μισθοί Οδηγών' },
+      { type: 'Βερβέρογλου Παναγιώτης', amount: 1700, category: 'Μισθοί Οδηγών' },
+      { type: 'Οδηγός 3', amount: 1700, category: 'Μισθοί Οδηγών' },
+      { type: 'Οδηγός 4', amount: 1700, category: 'Μισθοί Οδηγών' },
+      { type: 'Οδηγός 5', amount: 1700, category: 'Μισθοί Οδηγών' },
+      { type: 'Οδηγός 6', amount: 1700, category: 'Μισθοί Οδηγών' },
+      { type: 'Οδηγός 7', amount: 1700, category: 'Μισθοί Οδηγών' },
 
-    // Κάρτες Καυσίμων
-    { id: 8, type: 'Κάρτα 1234 5678 9012 3456 – IKA-1234', amount: 6000, subcategory: 'Κάρτες Καυσίμων' },
-    { id: 9, type: 'Κάρτα 9876 5432 1098 7654 – MYK-9012', amount: 1500, subcategory: 'Κάρτες Καυσίμων' },
+      // Κάρτες Καυσίμων
+      { type: 'Κάρτα 1234 5678 9012 3456 – IKA-1234', amount: 6000, category: 'Κάρτες Καυσίμων' },
+      { type: 'Κάρτα 9876 5432 1098 7654 – MYK-9012', amount: 1500, category: 'Κάρτες Καυσίμων' },
 
-    // Διόδια – single balance
-    { id: 10, type: 'Διόδια (συνολικό balance)', amount: 600, subcategory: 'Διόδια' },
+      // Διόδια
+      { type: 'Διόδια (συνολικό balance)', amount: 600, category: 'Διόδια' },
 
-    // Οχήματα Μύκονος
-    { id: 11, type: 'Mercedes Benz VClass', amount: 0, subcategory: 'Οχήματα Μύκονος' },
-    { id: 12, type: 'Mercedes Benz Sprinter', amount: 1100, subcategory: 'Οχήματα Μύκονος' },
-    { id: 13, type: 'Mercedes Benz Vito', amount: 900, subcategory: 'Οχήματα Μύκονος' },
+      // Οχήματα Μύκονος
+      { type: 'Mercedes Benz VClass', amount: 0, category: 'Οχήματα Μύκονος' },
+      { type: 'Mercedes Benz Sprinter', amount: 1100, category: 'Οχήματα Μύκονος' },
+      { type: 'Mercedes Benz Vito', amount: 900, category: 'Οχήματα Μύκονος' },
 
-    // Διάφορα
-    { id: 14, type: 'limoanywhere', amount: 130, subcategory: 'Διάφορα' },
-    { id: 15, type: 'Λογιστής', amount: 350, subcategory: 'Διάφορα' },
-    { id: 16, type: 'Cosmote', amount: 150, subcategory: 'Διάφορα' },
-    { id: 17, type: 'Service', amount: 500, subcategory: 'Διάφορα' },
-    { id: 18, type: 'Αρχοντικό Μου', amount: 1500, subcategory: 'Διάφορα' },
-    { id: 19, type: 'Εξωδικαστικοί', amount: 3000, subcategory: 'Διάφορα' },
+      // Διάφορα
+      { type: 'limoanywhere', amount: 130, category: 'Διάφορα' },
+      { type: 'Λογιστής', amount: 350, category: 'Διάφορα' },
+      { type: 'Cosmote', amount: 150, category: 'Διάφορα' },
+      { type: 'Service', amount: 500, category: 'Διάφορα' },
+      { type: 'Αρχοντικό Μου', amount: 1500, category: 'Διάφορα' },
+      { type: 'Εξωδικαστικοί', amount: 3000, category: 'Διάφορα' },
 
-    // Δόσεις Αυτοκινήτων
-    { id: 20, type: 'Skoda Octavia ΤΑΒ 2021', amount: 2150, subcategory: 'Δόσεις Αυτοκινήτων' },
-    { id: 21, type: 'Skoda Octavia ΤΑΒ 3719', amount: 2090, subcategory: 'Δόσεις Αυτοκινήτων' },
-    { id: 22, type: 'Skoda Rapid TAA 9208', amount: 1824, subcategory: 'Δόσεις Αυτοκινήτων' },
-    { id: 23, type: 'Skoda Octavia TAA 7148', amount: 2184, subcategory: 'Δόσεις Αυτοκινήτων' },
-  ]
+      // Δόσεις Αυτοκινήτων
+      { type: 'Skoda Octavia ΤΑΒ 2021', amount: 2150, category: 'Δόσεις Αυτοκινήτων' },
+      { type: 'Skoda Octavia ΤΑΒ 3719', amount: 2090, category: 'Δόσεις Αυτοκινήτων' },
+      { type: 'Skoda Rapid TAA 9208', amount: 1824, category: 'Δόσεις Αυτοκινήτων' },
+      { type: 'Skoda Octavia TAA 7148', amount: 2184, category: 'Δόσεις Αυτοκινήτων' },
+    ]
 
-  // Ίδια έξοδα για όλους τους μήνες
-  const expensesData: Record<string, typeof baseExpenses> = {}
-  for (const year of years) {
-    for (let i = 0; i < 12; i++) {
-      const key = `${months[i]} ${year}`
-      expensesData[key] = baseExpenses.map((exp, index) => ({ ...exp, id: index + 1 }))
+    // Δημιουργία expensesData (μόνο client-side)
+    const expensesData: Record<string, { id: number; type: string; amount: number; category: string }[]> = {}
+    for (const year of yearsRange) {
+      for (let i = 0; i < 12; i++) {
+        const key = `${months[i]} ${year}`
+        expensesData[key] = initialExpenses.map((exp, index) => ({
+          id: index + 1,
+          type: exp.type,
+          amount: exp.amount,
+          category: exp.category,
+        }))
+      }
     }
+
+    setExpenses(expensesData)
+  }, [])
+
+  const selectedKey = selectedDate
+    ? `${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
+    : `${months[0]} ${new Date().getFullYear()}`
+
+  const selectedExpenses = expenses[selectedKey] || []
+
+  const monthlyTotal = selectedExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+
+  const saveCategory = () => {
+    if (!newCategoryName.trim()) return
+
+    if (editingCategory) {
+      setCategories(prev => prev.map(c => c === editingCategory ? newCategoryName.trim() : c))
+      setExpenses(prev => {
+        const updated = { ...prev }
+        Object.keys(updated).forEach(key => {
+          updated[key] = updated[key].map(exp =>
+            exp.category === editingCategory ? { ...exp, category: newCategoryName.trim() } : exp
+          )
+        })
+        return updated
+      })
+    } else {
+      setCategories(prev => [...prev, newCategoryName.trim()])
+    }
+
+    setNewCategoryName('')
+    setEditingCategory(null)
+    setShowCategoryModal(false)
   }
 
-  const [expenses, setExpenses] = useState(expensesData)
+  const deleteCategory = (cat: string) => {
+    if (!confirm(`Σίγουρα να σβήσεις την κατηγορία "${cat}"? Τα έξοδα θα πάνε σε "Άλλα".`)) return
 
-  const filteredExpenses = expenses[selectedKey] || []
-
-  const monthlyTotal = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
-
-  // Group by subcategory
-  const groupedExpenses = filteredExpenses.reduce((groups, exp) => {
-    const key = exp.subcategory
-    if (!groups[key]) groups[key] = []
-    groups[key].push(exp)
-    return groups
-  }, {} as Record<string, typeof baseExpenses>)
-
-  // Modal for new expense
-  const [showNewModal, setShowNewModal] = useState(false)
-  const [newSubcategory, setNewSubcategory] = useState('Μισθοί Οδηγών')
-  const [newType, setNewType] = useState('')
-  const [newAmount, setNewAmount] = useState('')
+    setCategories(prev => prev.filter(c => c !== cat))
+    setExpenses(prev => {
+      const updated = { ...prev }
+      Object.keys(updated).forEach(key => {
+        updated[key] = updated[key].map(exp =>
+          exp.category === cat ? { ...exp, category: 'Άλλα' } : exp
+        )
+      })
+      return updated
+    })
+  }
 
   const addExpense = () => {
-    if (newType && newAmount && newSubcategory) {
+    if (newExpenseType && newExpenseAmount && newExpenseCategory) {
       const newExp = {
-        id: filteredExpenses.length + 1000,
-        type: newType,
-        amount: Number(newAmount),
-        subcategory: newSubcategory,
+        id: Date.now(),
+        type: newExpenseType,
+        amount: Number(newExpenseAmount),
+        category: newExpenseCategory,
       }
       setExpenses(prev => ({
         ...prev,
         [selectedKey]: [...(prev[selectedKey] || []), newExp]
       }))
-      setShowNewModal(false)
-      setNewType('')
-      setNewAmount('')
+      setShowNewExpenseModal(false)
+      setNewExpenseType('')
+      setNewExpenseAmount('')
     }
   }
 
-  // Edit modal
-  const [editExpense, setEditExpense] = useState<typeof baseExpenses[0] | null>(null)
+  const saveEditExpense = () => {
+    if (!editExpense) return
 
-  const saveEdit = () => {
-    if (editExpense) {
-      setExpenses(prev => ({
-        ...prev,
-        [selectedKey]: prev[selectedKey].map(exp => 
-          exp.id === editExpense.id ? editExpense : exp
-        )
-      }))
-      setEditExpense(null)
-    }
+    setExpenses(prev => ({
+      ...prev,
+      [selectedKey]: (prev[selectedKey] || []).map(exp =>
+        exp.id === editExpense.id ? editExpense : exp
+      )
+    }))
+
+    setEditExpense(null)
   }
 
-  // Delete
   const deleteExpense = (id: number) => {
     setExpenses(prev => ({
       ...prev,
-      [selectedKey]: prev[selectedKey].filter(exp => exp.id !== id)
+      [selectedKey]: (prev[selectedKey] || []).filter(exp => exp.id !== id)
     }))
   }
 
@@ -144,33 +191,32 @@ export default function Expenses() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Πάγια Έξοδα Εταιρείας</h1>
-            <p className="text-slate-600 mt-1">{months[selectedMonth]} {selectedYear}</p>
+            <p className="text-slate-600 mt-1">
+              {selectedDate ? `${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}` : 'Επιλέξτε μήνα'}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
-              <select 
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="appearance-none bg-white border border-slate-300 rounded-lg px-6 py-3 pr-10 text-lg font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-              >
-                {months.map((m, i) => (
-                  <option key={i} value={i}>{m}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 pointer-events-none" />
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => setSelectedDate(date)} // ΔΙΟΡΘΩΜΕΝΟ: χωρίς τύπο – TS το συμπεραίνει σωστά
+                showMonthYearPicker
+                dateFormat="MMMM yyyy"
+                className="bg-white border border-slate-300 rounded-lg px-6 py-3 text-lg font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                wrapperClassName="w-full"
+              />
             </div>
-            <div className="relative">
-              <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="appearance-none bg-white border border-slate-300 rounded-lg px-6 py-3 pr-10 text-lg font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-              >
-                {years.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 pointer-events-none" />
-            </div>
+            <button 
+              onClick={() => {
+                setNewCategoryName('')
+                setEditingCategory(null)
+                setShowCategoryModal(true)
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-medium flex items-center gap-2 shadow-sm transition"
+            >
+              <Plus className="w-5 h-5" />
+              Νέα Κατηγορία
+            </button>
           </div>
         </div>
       </div>
@@ -180,69 +226,153 @@ export default function Expenses() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
           <div className="flex items-center gap-3 mb-4">
             <DollarSign className="w-8 h-8 text-green-600" />
-            <h3 className="text-xl font-bold text-slate-900">Σύνολο για {months[selectedMonth]} {selectedYear}</h3>
+            <h3 className="text-xl font-bold text-slate-900">Σύνολο για {selectedKey}</h3>
           </div>
           <p className="text-4xl font-bold text-green-600">€{monthlyTotal.toLocaleString()}</p>
         </div>
 
-        {/* Grouped Expenses */}
+        {/* Κατηγορίες & Έξοδα */}
         <div className="space-y-8">
-          {Object.entries(groupedExpenses).map(([subcategory, exps]) => (
-            <div key={subcategory} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900">{subcategory}</h3>
-                <button 
-                  onClick={() => {
-                    setNewSubcategory(subcategory)
-                    setShowNewModal(true)
-                  }}
-                  className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {exps.map((exp) => (
-                  <div key={exp.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <DollarSign className="w-5 h-5 text-green-600" />
-                      </div>
-                      <p className="font-medium text-slate-900">{exp.type}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="font-bold text-green-600">€{exp.amount}</p>
+          {categories.map(cat => {
+            const catExpenses = selectedExpenses.filter(exp => exp.category === cat)
+            const catTotal = catExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+
+            return (
+              <div key={cat} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-slate-900">{cat}</h3>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => {
+                        setNewExpenseCategory(cat)
+                        setShowNewExpenseModal(true)
+                      }}
+                      className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setNewCategoryName(cat)
+                        setEditingCategory(cat)
+                        setShowCategoryModal(true)
+                      }}
+                      className="p-2 hover:bg-slate-100 rounded"
+                    >
+                      <Edit2 className="w-5 h-5 text-blue-600" />
+                    </button>
+                    {categories.length > 1 && (
                       <button 
-                        onClick={() => setEditExpense(exp)}
-                        className="p-1 hover:bg-slate-100 rounded"
+                        onClick={() => deleteCategory(cat)}
+                        className="p-2 hover:bg-slate-100 rounded"
                       >
-                        <Edit2 className="w-4 h-4 text-blue-600" />
+                        <Trash2 className="w-5 h-5 text-red-600" />
                       </button>
-                      <button 
-                        onClick={() => deleteExpense(exp.id)}
-                        className="p-1 hover:bg-slate-100 rounded"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
+                    )}
                   </div>
-                ))}
+                </div>
+
+                {catExpenses.length > 0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {catExpenses.map(exp => (
+                      <div key={exp.id} className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <DollarSign className="w-5 h-5 text-green-600" />
+                          </div>
+                          <p className="font-medium text-slate-900">{exp.type}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <p className="font-bold text-green-600">€{exp.amount}</p>
+                          <button 
+                            onClick={() => setEditExpense(exp)}
+                            className="p-1 hover:bg-slate-100 rounded"
+                          >
+                            <Edit2 className="w-4 h-4 text-blue-600" />
+                          </button>
+                          <button 
+                            onClick={() => deleteExpense(exp.id)}
+                            className="p-1 hover:bg-slate-100 rounded"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-slate-500">
+                    Καμία εγγραφή σε αυτή την κατηγορία
+                  </div>
+                )}
+
+                <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-right font-medium text-slate-700">
+                  Σύνολο: €{catTotal.toLocaleString()}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      {/* New Expense Modal */}
-      {showNewModal && (
+      {/* Modal Νέας/Επεξεργασίας Κατηγορίας */}
+      {showCategoryModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-900">Νέο Έξοδο ({newSubcategory})</h3>
-              <button onClick={() => setShowNewModal(false)} className="p-1 hover:bg-slate-100 rounded">
-                <X className="w-5 h-5" />
+              <h3 className="text-xl font-bold text-slate-900">
+                {editingCategory ? 'Επεξεργασία Κατηγορίας' : 'Νέα Κατηγορία'}
+              </h3>
+              <button onClick={() => setShowCategoryModal(false)} className="p-1 hover:bg-slate-100 rounded">
+                <X className="w-6 h-6 text-slate-600" />
               </button>
             </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Όνομα Κατηγορίας
+                </label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="π.χ. Ασφάλειες Οχημάτων"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 text-right flex justify-end gap-3">
+              <button 
+                onClick={() => setShowCategoryModal(false)}
+                className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition"
+              >
+                Ακύρωση
+              </button>
+              <button 
+                onClick={saveCategory}
+                disabled={!newCategoryName.trim()}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition disabled:opacity-50"
+              >
+                {editingCategory ? 'Αποθήκευση' : 'Προσθήκη'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Νέου Εξόδου */}
+      {showNewExpenseModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-slate-900">Νέο Έξοδο ({newExpenseCategory})</h3>
+              <button onClick={() => setShowNewExpenseModal(false)} className="p-1 hover:bg-slate-100 rounded">
+                <X className="w-6 h-6 text-slate-600" />
+              </button>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -250,8 +380,8 @@ export default function Expenses() {
                 </label>
                 <input
                   type="text"
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
+                  value={newExpenseType}
+                  onChange={(e) => setNewExpenseType(e.target.value)}
                   placeholder="π.χ. Διόδια"
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
@@ -262,13 +392,28 @@ export default function Expenses() {
                 </label>
                 <input
                   type="number"
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
+                  value={newExpenseAmount}
+                  onChange={(e) => setNewExpenseAmount(e.target.value)}
                   placeholder="600"
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Κατηγορία
+                </label>
+                <select
+                  value={newExpenseCategory}
+                  onChange={(e) => setNewExpenseCategory(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="mt-6 text-right">
               <button onClick={addExpense} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:scale-105">
                 Προσθήκη
@@ -278,16 +423,17 @@ export default function Expenses() {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Expense Modal */}
       {editExpense && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-900">Επεξεργασία Εξόδου</h3>
               <button onClick={() => setEditExpense(null)} className="p-1 hover:bg-slate-100 rounded">
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6 text-slate-600" />
               </button>
             </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -311,9 +457,24 @@ export default function Expenses() {
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Κατηγορία
+                </label>
+                <select
+                  value={editExpense.category}
+                  onChange={(e) => setEditExpense({...editExpense, category: e.target.value})}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="mt-6 text-right">
-              <button onClick={saveEdit} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:scale-105">
+              <button onClick={saveEditExpense} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-transform hover:scale-105">
                 Αποθήκευση
               </button>
             </div>

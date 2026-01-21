@@ -27,6 +27,8 @@ interface Expense {
 interface Service {
   name: string
   description: string
+  inclusions: string            // ← ΝΕΟ
+  exclusions: string            // ← ΝΕΟ
   price: number
   duration: string
   category: string
@@ -44,6 +46,8 @@ export default function NewService() {
   const [service, setService] = useState<Service>({
     name: '',
     description: '',
+    inclusions: '',               // ← ΝΕΟ (αρχικοποιημένο κενό)
+    exclusions: '',               // ← ΝΕΟ (αρχικοποιημένο κενό)
     price: 0,
     duration: '',
     category: 'Transfer',
@@ -369,6 +373,33 @@ export default function NewService() {
             />
           </div>
 
+          {/* ΝΕΑ: Inclusions & Exclusions – ακριβώς κάτω από την περιγραφή */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Inclusions</label>
+              <textarea
+                name="inclusions"
+                value={service.inclusions}
+                onChange={handleInputChange}
+                rows={5}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg resize-y"
+                placeholder="π.χ. • Μεταφορά με πολυτελές όχημα • Μπουκάλι νερό • WiFi • Ξεναγός"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Exclusions</label>
+              <textarea
+                name="exclusions"
+                value={service.exclusions}
+                onChange={handleInputChange}
+                rows={5}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg resize-y"
+                placeholder="π.χ. • Είσοδοι σε μουσεία • Φιλοδωρήματα • Φαγητό & ποτό • Ασφάλεια ταξιδιού"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Διάρκεια</label>
@@ -502,7 +533,7 @@ export default function NewService() {
           {isExternal && (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 bg-slate-50 p-6 rounded-xl">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Εξωτερικός Συνεργάτης</label>
+                <label className="block text-sm font-medium mb-1">Εξωτερικός Συνεργάτης</label>
                 <select
                   value={externalPartner}
                   onChange={(e) => handleExternalPartnerChange(e.target.value)}
@@ -515,12 +546,12 @@ export default function NewService() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Κόστος (€)</label>
+                <label className="block text-sm font-medium mb-1">Κόστος (€)</label>
                 <input
                   type="number"
                   value={externalCost || ''}
                   onChange={(e) => setExternalCost(Number(e.target.value))}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-right"
                 />
               </div>
               <div className="flex items-end">

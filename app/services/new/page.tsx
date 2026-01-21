@@ -16,7 +16,7 @@ interface ComboLeg {
   isExternal: boolean
   externalPartner: string
   externalCost: number
-  isExternalPerPerson: boolean  // Νέο: αν το external cost είναι per person
+  isExternalPerPerson: boolean
 }
 
 interface Expense {
@@ -27,16 +27,15 @@ interface Expense {
 interface Service {
   name: string
   description: string
-  price: number        // base price
+  price: number
   duration: string
   category: string
   isCombo: boolean
-  isPerPerson: boolean  // Νέο: αν η τιμή είναι per person
-  defaultPassengers: number  // Νέο: default αριθμός ατόμων για calcs
-  useTieredPricing: boolean          // ΝΕΟ: ενεργοποίηση tiered
-  pricingTiers: PricingTier[]        // ΝΕΟ: τα εύρη τιμών
+  isPerPerson: boolean
+  useTieredPricing: boolean
+  pricingTiers: PricingTier[]
   legs: ComboLeg[]
-  extras: { name: string; price: number }[]  // τιμή ανά extra
+  extras: { name: string; price: number }[]
   expenses: Expense[]
   photos: string[]
 }
@@ -50,7 +49,6 @@ export default function NewService() {
     category: 'Transfer',
     isCombo: false,
     isPerPerson: false,
-    defaultPassengers: 1,
     useTieredPricing: false,
     pricingTiers: [
       { min: 1, max: 6, price: 70 },
@@ -63,11 +61,10 @@ export default function NewService() {
     photos: [],
   })
 
-  // Νέα states από το NewBooking + additions
   const [isExternal, setIsExternal] = useState(false)
   const [externalPartner, setExternalPartner] = useState('')
   const [externalCost, setExternalCost] = useState(0)
-  const [isExternalPerPerson, setIsExternalPerPerson] = useState(false)  // Νέο για external cost per person
+  const [isExternalPerPerson, setIsExternalPerPerson] = useState(false)
 
   const [b2bPartner, setB2bPartner] = useState('')
   const [commissionBase, setCommissionBase] = useState<'gross' | 'net'>('gross')
@@ -76,7 +73,6 @@ export default function NewService() {
   const [previewOpen, setPreviewOpen] = useState(false)
 
   const categories = ['Transfer', 'Tour', 'Package', 'Custom']
-
   const legServices = ['Airport Transfer', 'Wine Tasting', 'Day Trip', 'Mykonos Package', 'Hourly', 'Custom']
 
   const extrasList = [
@@ -129,7 +125,6 @@ export default function NewService() {
     setService(prev => ({
       ...prev,
       isPerPerson: !prev.isPerPerson,
-      defaultPassengers: !prev.isPerPerson ? 1 : 1,  // reset to 1 if toggled off
     }))
   }
 
@@ -272,10 +267,8 @@ export default function NewService() {
     }))
   }
 
-  // ────────────────────────────────────────────────
-  // Οικονομικοί Υπολογισμοί (προσαρμοσμένοι με per person)
-  // ────────────────────────────────────────────────
-  const passengers = service.defaultPassengers || 1  // Χρησιμοποιούμε default για preview/calcs
+  // Οικονομικοί Υπολογισμοί (χωρίς defaultPassengers πλέον – χρησιμοποιούμε 1 ως fallback)
+  const passengers = 1 // fallback – αν θες να το κάνουμε δυναμικό αργότερα, το συζητάμε
 
   const baseRevenue = service.isPerPerson ? (service.price || 0) * passengers : (service.price || 0)
 
@@ -323,7 +316,6 @@ export default function NewService() {
       }
     }
 
-    // Mock save – εδώ θα μπει Supabase αργότερα
     setTimeout(() => {
       console.log('Service saved with financials:', dataToSave)
       alert('Υπηρεσία αποθηκεύτηκε (mock)!')
@@ -416,25 +408,8 @@ export default function NewService() {
             </div>
           </div>
 
-          {service.isPerPerson && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Default Αριθμός Ατόμων (για preview)</label>
-                <input
-                  type="number"
-                  name="defaultPassengers"
-                  value={service.defaultPassengers}
-                  onChange={handleNumberChange}
-                  min="1"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
-                  placeholder="1"
-                />
-              </div>
-            </div>
-          )}
-
           {/* ────────────────────────────────────────────────
-               ΝΕΟ: Tiered Pricing (εύρη ατόμων) - προστέθηκε εδώ χωρίς να αλλάξει τίποτα πριν
+               Tiered Pricing (παραμένει ίδιο)
           ──────────────────────────────────────────────── */}
           <div className="border-t border-slate-200 pt-8">
             <div className="flex items-center gap-3 mb-4">
@@ -458,9 +433,7 @@ export default function NewService() {
                 {service.pricingTiers.map((tier, index) => (
                   <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Από άτομα
-                      </label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Από άτομα</label>
                       <input
                         type="number"
                         min="1"
@@ -471,9 +444,7 @@ export default function NewService() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Έως άτομα
-                      </label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Έως άτομα</label>
                       <input
                         type="text"
                         value={tier.max}
@@ -484,9 +455,7 @@ export default function NewService() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Τιμή (€)
-                      </label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Τιμή (€)</label>
                       <input
                         type="number"
                         value={tier.price}
@@ -517,6 +486,7 @@ export default function NewService() {
             )}
           </div>
 
+          {/* External */}
           <div className="flex items-end">
             <div className="flex items-center gap-3">
               <input
@@ -567,7 +537,7 @@ export default function NewService() {
             </div>
           )}
 
-          {/* B2B / Commission */}
+          {/* B2B */}
           <div className="bg-white border border-slate-200 rounded-xl p-6">
             <h3 className="text-lg font-bold mb-4">B2B / Συνεργάτης (προαιρετικό)</h3>
             <select
@@ -728,7 +698,7 @@ export default function NewService() {
             </div>
           )}
 
-          {/* Έξοδα Υπηρεσίας (παραμένουν) */}
+          {/* Έξοδα */}
           <div className="space-y-6">
             <h3 className="text-lg font-bold">Έξοδα Υπηρεσίας</h3>
             {service.expenses.map((exp, index) => (
@@ -830,7 +800,7 @@ export default function NewService() {
             </div>
           </div>
 
-          {/* Upload Φωτογραφιών */}
+          {/* Photos */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-900">Φωτογραφίες Υπηρεσίας</h3>
             <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
@@ -874,7 +844,7 @@ export default function NewService() {
             )}
           </div>
 
-          {/* Preview & Save */}
+          {/* Buttons */}
           <div className="flex gap-4">
             <button
               type="button"

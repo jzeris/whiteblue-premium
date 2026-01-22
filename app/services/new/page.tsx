@@ -27,8 +27,8 @@ interface Expense {
 interface Service {
   name: string
   description: string
-  inclusions: string            // ← ΝΕΟ
-  exclusions: string            // ← ΝΕΟ
+  inclusions: string
+  exclusions: string
   price: number
   duration: string
   category: string
@@ -46,8 +46,8 @@ export default function NewService() {
   const [service, setService] = useState<Service>({
     name: '',
     description: '',
-    inclusions: '',               // ← ΝΕΟ (αρχικοποιημένο κενό)
-    exclusions: '',               // ← ΝΕΟ (αρχικοποιημένο κενό)
+    inclusions: '',
+    exclusions: '',
     price: 0,
     duration: '',
     category: 'Transfer',
@@ -75,6 +75,7 @@ export default function NewService() {
 
   const [isSaving, setIsSaving] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [errors, setErrors] = useState<string[]>([]) // ← ΝΕΟ: για validation errors
 
   const categories = ['Transfer', 'Tour', 'Package', 'Custom']
   const legServices = ['Airport Transfer', 'Wine Tasting', 'Day Trip', 'Mykonos Package', 'Hourly', 'Custom']
@@ -271,8 +272,8 @@ export default function NewService() {
     }))
   }
 
-  // Οικονομικοί Υπολογισμοί (χωρίς defaultPassengers πλέον – χρησιμοποιούμε 1 ως fallback)
-  const passengers = 1 // fallback – αν θες να το κάνουμε δυναμικό αργότερα, το συζητάμε
+  // Οικονομικοί Υπολογισμοί (fallback passengers = 1)
+  const passengers = 1
 
   const baseRevenue = service.isPerPerson ? (service.price || 0) * passengers : (service.price || 0)
 
@@ -300,8 +301,22 @@ export default function NewService() {
 
   const netProfit = grossRevenue - totalExternalCost - b2bCommission
 
+  const validateForm = () => {
+    const errs: string[] = []
+    if (!service.name.trim()) errs.push('Όνομα Υπηρεσίας')
+    if (service.price <= 0) errs.push('Βασική Τιμή')
+    if (!service.duration.trim()) errs.push('Διάρκεια')
+    if (errs.length > 0) {
+      alert(`Παρακαλώ συμπληρώστε: ${errs.join(', ')}`)
+      return false
+    }
+    return true
+  }
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
+    if (!validateForm()) return
+
     setIsSaving(true)
 
     const dataToSave = {
@@ -320,9 +335,41 @@ export default function NewService() {
       }
     }
 
+    // Αποθήκευση σε localStorage (mock)
+    const existingServices = JSON.parse(localStorage.getItem('services') || '[]')
+    localStorage.setItem('services', JSON.stringify([...existingServices, dataToSave]))
+
     setTimeout(() => {
-      console.log('Service saved with financials:', dataToSave)
-      alert('Υπηρεσία αποθηκεύτηκε (mock)!')
+      console.log('Service saved (mock):', dataToSave)
+      alert('Υπηρεσία αποθηκεύτηκε επιτυχώς! (mock mode)')
+      // Reset form
+      setService({
+        name: '',
+        description: '',
+        inclusions: '',
+        exclusions: '',
+        price: 0,
+        duration: '',
+        category: 'Transfer',
+        isCombo: false,
+        isPerPerson: false,
+        useTieredPricing: false,
+        pricingTiers: [
+          { min: 1, max: 6, price: 70 },
+          { min: 7, max: 12, price: 140 },
+          { min: 13, max: '∞', price: 180 }
+        ],
+        legs: [],
+        extras: [],
+        expenses: [],
+        photos: [],
+      })
+      setIsExternal(false)
+      setExternalPartner('')
+      setExternalCost(0)
+      setIsExternalPerPerson(false)
+      setB2bPartner('')
+      setCommissionBase('gross')
       setIsSaving(false)
     }, 1500)
   }
@@ -336,7 +383,9 @@ export default function NewService() {
           {/* Βασικά Στοιχεία */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Όνομα Υπηρεσίας</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Όνομα Υπηρεσίας <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 name="name"
@@ -373,7 +422,7 @@ export default function NewService() {
             />
           </div>
 
-          {/* ΝΕΑ: Inclusions & Exclusions – ακριβώς κάτω από την περιγραφή */}
+          {/* Inclusions & Exclusions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Inclusions</label>
@@ -400,9 +449,12 @@ export default function NewService() {
             </div>
           </div>
 
+          {/* Υπόλοιπο form (δεν αλλάζει τίποτα) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Διάρκεια</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Διάρκεια <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 name="duration"
@@ -410,11 +462,14 @@ export default function NewService() {
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg"
                 placeholder="π.χ. 4 ώρες"
+                required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Βασική Τιμή (€)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Βασική Τιμή (€) <span className="text-red-500">*</span>
+              </label>
               <input
                 type="number"
                 name="price"
@@ -439,9 +494,7 @@ export default function NewService() {
             </div>
           </div>
 
-          {/* ────────────────────────────────────────────────
-               Tiered Pricing (παραμένει ίδιο)
-          ──────────────────────────────────────────────── */}
+          {/* Tiered Pricing (παραμένει ίδιο) */}
           <div className="border-t border-slate-200 pt-8">
             <div className="flex items-center gap-3 mb-4">
               <input
@@ -905,7 +958,7 @@ export default function NewService() {
         </form>
       </div>
 
-      {/* Preview Modal */}
+      {/* Preview Modal – βελτιωμένο για να δείχνει inclusions/exclusions */}
       {previewOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full m-4 p-8 max-h-[90vh] overflow-y-auto">
@@ -919,6 +972,25 @@ export default function NewService() {
             <div className="space-y-6">
               <h3 className="text-xl font-bold">{service.name || 'Όνομα Υπηρεσίας'}</h3>
               <p className="text-slate-600">{service.description || 'Περιγραφή...'}</p>
+
+              {/* Νέο: Inclusions & Exclusions */}
+              {(service.inclusions || service.exclusions) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {service.inclusions && (
+                    <div>
+                      <h4 className="font-bold mb-2">Inclusions</h4>
+                      <p className="text-slate-700 whitespace-pre-line">{service.inclusions}</p>
+                    </div>
+                  )}
+                  {service.exclusions && (
+                    <div>
+                      <h4 className="font-bold mb-2">Exclusions</h4>
+                      <p className="text-slate-700 whitespace-pre-line">{service.exclusions}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <p className="text-2xl font-bold text-green-600">€{service.price.toFixed(2)} {service.isPerPerson ? 'ανά άτομο' : ''}</p>
               <p><strong>Διάρκεια:</strong> {service.duration || '-'}</p>
               <p><strong>Κατηγορία:</strong> {service.category}</p>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import React from 'react'
 import { Calendar, Star, MapPin, Bell, DollarSign, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 
@@ -49,10 +49,26 @@ const mockLogs: Record<string, { time: string; event: string }[]> = {
 export default function B2BDashboard() {
   const [username, setUsername] = useState('')
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const notificationRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const name = localStorage.getItem('b2b_username') || 'Συνεργάτης'
     setUsername(name)
+  }, [])
+
+  // Κλείσιμο dropdown όταν πατάς έξω
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [])
 
   const toggleRow = (id: string) => {
@@ -67,13 +83,42 @@ export default function B2BDashboard() {
           <h1 className="text-3xl font-bold text-slate-900">B2B Dashboard</h1>
           <p className="text-slate-600 mt-1">Καλώς ήρθατε, {username}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-slate-100 rounded-lg relative">
+        <div className="relative" ref={notificationRef}>
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2 hover:bg-slate-100 rounded-lg relative focus:outline-none"
+          >
             <Bell className="w-6 h-6 text-slate-600" />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {mockNotifications.length}
-            </span>
+            {mockNotifications.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                {mockNotifications.length}
+              </span>
+            )}
           </button>
+
+          {/* Notifications Dropdown */}
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 max-h-96 overflow-y-auto">
+              <div className="p-4 border-b bg-slate-50">
+                <h3 className="font-bold text-slate-900">Ενημερώσεις</h3>
+              </div>
+              <div className="space-y-3 p-4">
+                {mockNotifications.map((n, i) => (
+                  <div key={i} className={`p-3 rounded-lg flex justify-between items-center ${
+                    n.type === 'complete' ? 'bg-green-50 border-l-4 border-green-500' :
+                    n.type === 'delay' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
+                    'bg-blue-50 border-l-4 border-blue-500'
+                  }`}>
+                    <p className="text-slate-800 text-sm flex-1">{n.message}</p>
+                    <p className="text-xs text-slate-500 whitespace-nowrap ml-4">{n.time}</p>
+                  </div>
+                ))}
+                {mockNotifications.length === 0 && (
+                  <p className="text-slate-500 text-center py-6">Καμία νέα ενημέρωση</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -132,14 +177,13 @@ export default function B2BDashboard() {
         </div>
       </div>
 
-      {/* Τρέχουσες Κρατήσεις – με expandable rows */}
+      {/* Τρέχουσες Κρατήσεις */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-xl font-bold mb-4">Τρέχουσες Κρατήσεις</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
             <thead>
               <tr className="border-b bg-slate-50">
-                <th className="py-4 px-6 font-semibold w-10"></th>
                 <th className="py-4 px-6 font-semibold">ID</th>
                 <th className="py-4 px-6 font-semibold">Ημερομηνία</th>
                 <th className="py-4 px-6 font-semibold">Πελάτης</th>
@@ -150,79 +194,22 @@ export default function B2BDashboard() {
             </thead>
             <tbody>
               {mockBookings.map(b => (
-                <React.Fragment key={b.id}>
-                  <tr
-                    className="border-b hover:bg-slate-50 transition cursor-pointer"
-                    onClick={() => toggleRow(b.id)}
-                  >
-                    <td className="py-4 px-6">
-                      {expandedRow === b.id ? (
-                        <ChevronUp className="w-5 h-5 text-slate-600" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-slate-600" />
-                      )}
-                    </td>
-                    <td className="py-4 px-6 font-medium">{b.id}</td>
-                    <td className="py-4 px-6">{b.date}</td>
-                    <td className="py-4 px-6">{b.customer}</td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        b.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                        b.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 font-medium">€{b.price.toFixed(2)}</td>
-                    <td className="py-4 px-6 font-medium">€{(b.commission || 0).toFixed(2)}</td>
-                  </tr>
-
-                  {expandedRow === b.id && (
-                    <tr key={`${b.id}-expand`}>
-                      <td colSpan={7} className="p-0">
-                        <div className="bg-slate-50 p-6 border-t">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {/* Live Tracking */}
-                            <div>
-                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                                <MapPin className="w-5 h-5 text-blue-600" />
-                                Live Tracking
-                              </h3>
-                              <div className="bg-white rounded-lg p-4 border shadow-sm">
-                                <p className="font-medium">Κράτηση: {b.id}</p>
-                                <p className="text-slate-700 mt-2">Οδηγός: <strong>{mockTracking.find(t => t.id === b.id)?.driver || '—'}</strong></p>
-                                <p className="text-slate-700 mt-1">Τρέχουσα Τοποθεσία: <strong>{mockTracking.find(t => t.id === b.id)?.location || '—'}</strong></p>
-                                <p className="text-sm text-slate-500 mt-4 italic">(Mock – αργότερα real map με GPS)</p>
-                              </div>
-                            </div>
-
-                            {/* Ιστορικό Βημάτων (Log) */}
-                            <div>
-                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-purple-600" />
-                                Ιστορικό Βημάτων
-                              </h3>
-                              <div className="space-y-3">
-                                {(mockLogs[b.id] || []).map((log, idx) => (
-                                  <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-lg border">
-                                    <div>
-                                      <p className="font-medium">{log.event}</p>
-                                    </div>
-                                    <p className="text-sm text-slate-500">{log.time}</p>
-                                  </div>
-                                ))}
-                                {(!mockLogs[b.id] || mockLogs[b.id].length === 0) && (
-                                  <p className="text-slate-500 text-center py-4">Κανένα βήμα ακόμα</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
+                <tr key={b.id} className="border-b hover:bg-slate-50 transition">
+                  <td className="py-4 px-6 font-medium">{b.id}</td>
+                  <td className="py-4 px-6">{b.date}</td>
+                  <td className="py-4 px-6">{b.customer}</td>
+                  <td className="py-4 px-6">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                      b.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                      b.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {b.status}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6 font-medium">€{b.price.toFixed(2)}</td>
+                  <td className="py-4 px-6 font-medium">€{(b.commission || 0).toFixed(2)}</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -241,49 +228,6 @@ export default function B2BDashboard() {
               </div>
               <p className="text-slate-700 italic">"{r.comment}"</p>
               <p className="text-sm text-slate-500 mt-1">Οδηγός: <strong>{r.driver}</strong></p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Live Tracking */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-bold mb-4">Live Tracking</h2>
-        <div className="space-y-4">
-          {mockTracking.map(t => (
-            <div key={t.id} className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-lg">Κράτηση: {t.id}</p>
-                  <p className="text-slate-700">Οδηγός: <strong>{t.driver}</strong></p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  t.status.includes('Ξεκίνησε') ? 'bg-blue-100 text-blue-800' :
-                  t.status.includes('Έφτασε') ? 'bg-green-100 text-green-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {t.status}
-                </span>
-              </div>
-              <p className="text-sm text-slate-500 mt-2">Τοποθεσία: {t.location}</p>
-            </div>
-          ))}
-          {mockTracking.length === 0 && <p className="text-slate-500 text-center py-4">Καμία τρέχουσα υπηρεσία</p>}
-        </div>
-      </div>
-
-      {/* Notifications */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-bold mb-4">Ενημερώσεις</h2>
-        <div className="space-y-3">
-          {mockNotifications.map((n, i) => (
-            <div key={i} className={`p-4 rounded-lg flex justify-between items-center ${
-              n.type === 'complete' ? 'bg-green-50 border-l-4 border-green-500' :
-              n.type === 'delay' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
-              'bg-blue-50 border-l-4 border-blue-500'
-            }`}>
-              <p className="text-slate-800">{n.message}</p>
-              <p className="text-sm text-slate-500">{n.time}</p>
             </div>
           ))}
         </div>

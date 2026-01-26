@@ -33,12 +33,14 @@ const mockLogs: Record<string, { time: string; event: string }[]> = {
     { time: '14:05', event: 'Ο οδηγός Γιάννης Ζ αποδέχτηκε' },
     { time: '14:12', event: 'Ξεκίνησε τη διαδρομή' },
     { time: '14:28', event: 'Έφτασε στο Pickup' },
+    { time: '14:45', event: 'Παρέλαβε επιβάτες' },
+    { time: '15:30', event: 'Ολοκληρώθηκε' },
   ],
   'BK124': [
     { time: '10:00', event: 'Κράτηση δημιουργήθηκε' },
     { time: '10:10', event: 'Ο οδηγός Πέτρος Κ αποδέχτηκε' },
     { time: '10:20', event: 'Παρέλαβε επιβάτες' },
-    { time: '11:45', event: 'Ολοκληρώθηκε η διαδρομή' },
+    { time: '11:45', event: 'Ολοκληρώθηκε' },
   ],
   'BK125': [
     { time: '18:00', event: 'Κράτηση δημιουργήθηκε' },
@@ -66,9 +68,7 @@ export default function B2BDashboard() {
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const toggleRow = (id: string) => {
@@ -177,13 +177,14 @@ export default function B2BDashboard() {
         </div>
       </div>
 
-      {/* Τρέχουσες Κρατήσεις */}
+      {/* Τρέχουσες Κρατήσεις – με expandable row */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-xl font-bold mb-4">Τρέχουσες Κρατήσεις</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
             <thead>
               <tr className="border-b bg-slate-50">
+                <th className="py-4 px-6 font-semibold w-10"></th>
                 <th className="py-4 px-6 font-semibold">ID</th>
                 <th className="py-4 px-6 font-semibold">Ημερομηνία</th>
                 <th className="py-4 px-6 font-semibold">Πελάτης</th>
@@ -194,22 +195,81 @@ export default function B2BDashboard() {
             </thead>
             <tbody>
               {mockBookings.map(b => (
-                <tr key={b.id} className="border-b hover:bg-slate-50 transition">
-                  <td className="py-4 px-6 font-medium">{b.id}</td>
-                  <td className="py-4 px-6">{b.date}</td>
-                  <td className="py-4 px-6">{b.customer}</td>
-                  <td className="py-4 px-6">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                      b.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                      b.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 font-medium">€{b.price.toFixed(2)}</td>
-                  <td className="py-4 px-6 font-medium">€{(b.commission || 0).toFixed(2)}</td>
-                </tr>
+                <React.Fragment key={b.id}>
+                  <tr
+                    className="border-b hover:bg-slate-50 transition cursor-pointer"
+                    onClick={() => toggleRow(b.id)}
+                  >
+                    <td className="py-4 px-6">
+                      {expandedRow === b.id ? (
+                        <ChevronUp className="w-5 h-5 text-slate-600" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-slate-600" />
+                      )}
+                    </td>
+                    <td className="py-4 px-6 font-medium">{b.id}</td>
+                    <td className="py-4 px-6">{b.date}</td>
+                    <td className="py-4 px-6">{b.customer}</td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        b.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                        b.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {b.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 font-medium">€{b.price.toFixed(2)}</td>
+                    <td className="py-4 px-6 font-medium">€{(b.commission || 0).toFixed(2)}</td>
+                  </tr>
+
+                  {/* Expandable Row */}
+                  {expandedRow === b.id && (
+                    <tr key={`${b.id}-expand`}>
+                      <td colSpan={7} className="p-0">
+                        <div className="bg-slate-50 p-6 border-t">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Live Tracking */}
+                            <div>
+                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                <MapPin className="w-5 h-5 text-blue-600" />
+                                Live Tracking
+                              </h3>
+                              <div className="bg-white rounded-lg p-4 border shadow-sm">
+                                <p className="font-medium">Κράτηση: {b.id}</p>
+                                <p className="text-slate-700 mt-2">Οδηγός: <strong>{mockTracking.find(t => t.id === b.id)?.driver || '—'}</strong></p>
+                                <p className="text-slate-700 mt-1">Τρέχουσα Κατάσταση: <strong>{mockTracking.find(t => t.id === b.id)?.status || '—'}</strong></p>
+                                <p className="text-slate-700 mt-1">Τοποθεσία: <strong>{mockTracking.find(t => t.id === b.id)?.location || '—'}</strong></p>
+                                <p className="text-sm text-slate-500 mt-4 italic">(Mock – αργότερα real map με GPS)</p>
+                              </div>
+                            </div>
+
+                            {/* Ιστορικό Βημάτων */}
+                            <div>
+                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-purple-600" />
+                                Ιστορικό Βημάτων
+                              </h3>
+                              <div className="space-y-3">
+                                {(mockLogs[b.id] || []).map((log, idx) => (
+                                  <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-lg border">
+                                    <div>
+                                      <p className="font-medium">{log.event}</p>
+                                    </div>
+                                    <p className="text-sm text-slate-500">{log.time}</p>
+                                  </div>
+                                ))}
+                                {(!mockLogs[b.id] || mockLogs[b.id].length === 0) && (
+                                  <p className="text-slate-500 text-center py-4">Κανένα βήμα ακόμα</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

@@ -1,19 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar as CalendarIcon, Filter, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation' // ← ΑΥΤΟ λύνει το κουμπί
+import { Calendar as CalendarIcon, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { el } from 'date-fns/locale'
 
 // Mock data (θα αντικατασταθεί από βάση αργότερα)
 const mockBookings = [
-  { id: 'BK123', date: new Date('2026-01-21T14:00:00'), customer: 'John Doe', status: 'In Progress', price: 450, commission: 67.5, driver: 'Γιάννης Ζ' },
-  { id: 'BK124', date: new Date('2026-01-22T10:00:00'), customer: 'Maria K', status: 'Completed', price: 320, commission: 0, driver: 'Πέτρος Κ' },
-  { id: 'BK125', date: new Date('2026-01-22T18:00:00'), customer: 'Alex P', status: 'Pending', price: 600, commission: 90, driver: 'Νίκος Π' },
-  { id: 'BK126', date: new Date('2026-01-23T09:30:00'), customer: 'Elena S', status: 'Pending', price: 280, commission: 42, driver: '—' },
+  { id: 'BK123', date: new Date('2026-02-01T14:00:00'), customer: 'John Doe', status: 'In Progress', price: 450, commission: 67.5, driver: 'Γιάννης Ζ' },
+  { id: 'BK124', date: new Date('2026-02-01T10:00:00'), customer: 'Maria K', status: 'Completed', price: 320, commission: 0, driver: 'Πέτρος Κ' },
+  { id: 'BK125', date: new Date('2026-02-02T18:00:00'), customer: 'Alex P', status: 'Pending', price: 600, commission: 90, driver: 'Νίκος Π' },
+  { id: 'BK126', date: new Date('2026-02-02T09:30:00'), customer: 'Elena S', status: 'Pending', price: 280, commission: 42, driver: '—' },
 ]
 
 export default function BookingsPage() {
+  const router = useRouter() // ← Για να πηγαίνει στη νέα κράτηση
+
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(),
     to: new Date(new Date().setDate(new Date().getDate() + 1)),
@@ -34,7 +37,10 @@ export default function BookingsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-900">Κρατήσεις</h1>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <button 
+          onClick={() => router.push('/b2b/bookings/new')}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Νέα Κράτηση
         </button>
@@ -42,7 +48,7 @@ export default function BookingsPage() {
 
       {/* Φίλτρα & Ημερολόγιο */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        {/* Ημερολόγιο – απλή επιλογή ημερομηνιών (input type date για mock) */}
+        {/* Ημερολόγιο */}
         <div className="flex flex-col sm:flex-row gap-2">
           <label className="text-sm text-slate-600">Από:</label>
           <input

@@ -1,130 +1,103 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, ChangeEvent } from 'react'
+import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { format } from 'date-fns'
+import { el } from 'date-fns/locale'
 
-export default function NewBooking() {
-  const [mainService, setMainService] = useState('Airport Transfer')
+// Mock υπηρεσίες (όπως τις δηλώνεις εσύ)
+const availableServices = [
+  'Airport Transfer',
+  'Hourly',
+  'Day Trip',
+  'Mykonos Package',
+  'Meet & Greet',
+  'Assistant',
+  'Wine Tasting Tour',
+]
+
+const servicePrices: Record<string, number> = {
+  'Airport Transfer': 80,
+  'Hourly': 60,
+  'Day Trip': 300,
+  'Mykonos Package': 800,
+  'Meet & Greet': 50,
+  'Assistant': 100,
+  'Wine Tasting Tour': 450,
+}
+
+const serviceTiers: Record<string, { min: number; max: number | '∞'; price: number }[]> = {
+  'Airport Transfer': [
+    { min: 1, max: 6, price: 70 },
+    { min: 7, max: 12, price: 140 },
+    { min: 13, max: '∞', price: 180 },
+  ],
+  'Hourly': [
+    { min: 1, max: 4, price: 60 },
+    { min: 5, max: 8, price: 100 },
+    { min: 9, max: '∞', price: 140 },
+  ],
+  'Day Trip': [
+    { min: 1, max: 6, price: 300 },
+    { min: 7, max: 12, price: 500 },
+    { min: 13, max: '∞', price: 700 },
+  ],
+  'Mykonos Package': [
+    { min: 1, max: 4, price: 800 },
+    { min: 5, max: 8, price: 1200 },
+    { min: 9, max: '∞', price: 1600 },
+  ],
+}
+
+const comboLegs: Record<string, { service: string; price: number }[]> = {
+  'Wine Tasting Tour': [
+    { service: 'Airport Transfer', price: 80 },
+    { service: 'Wine Tasting Tour', price: 290 },
+    { service: 'Airport Transfer', price: 80 },
+  ],
+  'Mykonos Package': [
+    { service: 'Airport Transfer', price: 150 },
+    { service: 'Mykonos Package', price: 500 },
+    { service: 'Airport Transfer', price: 150 },
+  ],
+}
+
+// Mock προμήθεια συνεργάτη (από προφίλ – εδώ 15%)
+const partnerCommission = { type: 'percentage', value: 15 }
+
+export default function NewB2BBooking() {
+  const [mainService, setMainService] = useState<keyof typeof serviceTiers>('Airport Transfer')
   const [mainPrice, setMainPrice] = useState(80)
-  const [mainIsExternal, setMainIsExternal] = useState(false)
-  const [mainExternalPartner, setMainExternalPartner] = useState('')
-  const [mainExternalCost, setMainExternalCost] = useState(0)
-  const [extraLegs, setExtraLegs] = useState<{ service: string; price: number; time: string; isExternal: boolean; externalPartner: string; externalCost: number }[]>([])
+  const [extraLegs, setExtraLegs] = useState<{ service: string; price: number; time: string }[]>([])
   const [extraServices, setExtraServices] = useState<{
     service: string;
     price: number;
     time: string;
-    isExternal: boolean;
-    externalPartner: string;
-    externalCost: number;
     pickup: string;
     dropoff: string;
   }[]>([])
-  const [b2bPartner, setB2bPartner] = useState('')
-  const [commissionBase, setCommissionBase] = useState<'gross' | 'net'>('gross')
   const [pickup, setPickup] = useState('Athens Airport')
   const [dropoff, setDropoff] = useState('Hotel Grande Bretagne')
   const [extraStops, setExtraStops] = useState<string[]>([])
-
   const [passengers, setPassengers] = useState<number>(0) // Default 0 (φαίνεται κενό)
 
-  const availableServices = [
-    'Airport Transfer',
-    'Hourly',
-    'Day Trip',
-    'Mykonos Package',
-    'Meet & Greet',
-    'Assistant',
-    'Wine Tasting Tour',
-  ]
-
-  const servicePrices: Record<string, number> = {
-    'Airport Transfer': 80,
-    'Hourly': 60,
-    'Day Trip': 300,
-    'Mykonos Package': 800,
-    'Meet & Greet': 50,
-    'Assistant': 100,
-    'Wine Tasting Tour': 450,
-  }
-
-  const serviceTiers: Record<string, { min: number; max: number | '∞'; price: number }[]> = {
-    'Airport Transfer': [
-      { min: 1, max: 6, price: 70 },
-      { min: 7, max: 12, price: 140 },
-      { min: 13, max: '∞', price: 180 },
-    ],
-    'Hourly': [
-      { min: 1, max: 4, price: 60 },
-      { min: 5, max: 8, price: 100 },
-      { min: 9, max: '∞', price: 140 },
-    ],
-    'Day Trip': [
-      { min: 1, max: 6, price: 300 },
-      { min: 7, max: 12, price: 500 },
-      { min: 13, max: '∞', price: 700 },
-    ],
-    'Mykonos Package': [
-      { min: 1, max: 4, price: 800 },
-      { min: 5, max: 8, price: 1200 },
-      { min: 9, max: '∞', price: 1600 },
-    ],
-    // Προσθέστε tiers για Meet & Greet, Assistant, Wine Tasting Tour αν θέλετε
-  }
-
-  const comboLegs: Record<string, { service: string; price: number }[]> = {
-    'Wine Tasting Tour': [
-      { service: 'Airport Transfer', price: 80 },
-      { service: 'Wine Tasting Tour', price: 290 },
-      { service: 'Airport Transfer', price: 80 },
-    ],
-    'Mykonos Package': [
-      { service: 'Airport Transfer', price: 150 },
-      { service: 'Mykonos Package', price: 500 },
-      { service: 'Airport Transfer', price: 150 },
-    ],
-  }
-
-  const externalPartners = [
-    { name: 'Taxi Athens', defaultCost: 50 },
-    { name: 'Mykonos Transfers Ltd', defaultCost: 150 },
-    { name: 'Santorini Tours', defaultCost: 200 },
-  ]
-
-  const partnersList = [
-    { name: 'Grande Bretagne', type: 'B2B', commissionType: 'percentage', commissionValue: 15 },
-    { name: 'Blue Villas', type: 'B2B', commissionType: 'percentage', commissionValue: 12 },
-    { name: 'Hotel Nefeli', type: 'both', commissionType: 'fixed', commissionValue: 50 },
-    { name: 'Taxi Athens', type: 'external' },
-    { name: 'Mykonos Transfers Ltd', type: 'external' },
-    { name: 'Santorini Tours', type: 'external' },
-  ]
-
-  const b2bOptions = partnersList.filter(p => p.type === 'B2B' || p.type === 'both')
-
-  // Συνάρτηση που υπολογίζει τιμή βάσει tiers
   const getServicePrice = (serviceName: string, pax: number): number => {
-    const tiers = serviceTiers[serviceName]
-    if (!tiers) return servicePrices[serviceName] || 0
+    const tiers = serviceTiers[serviceName as keyof typeof serviceTiers] || []
+    if (tiers.length === 0) return servicePrices[serviceName] || 0
 
     const matchingTier = tiers.find(tier => pax >= tier.min && (tier.max === '∞' || pax <= tier.max))
     return matchingTier ? matchingTier.price : servicePrices[serviceName] || 0
   }
 
   const handleMainServiceChange = (service: string) => {
-    setMainService(service)
+    setMainService(service as keyof typeof serviceTiers)
 
     if (comboLegs[service]) {
       setMainPrice(0)
-      setMainIsExternal(false)
-      setMainExternalPartner('')
-      setMainExternalCost(0)
       setExtraLegs(comboLegs[service].map(leg => ({ 
         service: leg.service, 
         price: leg.price, 
         time: '', 
-        isExternal: false, 
-        externalPartner: '', 
-        externalCost: 0 
       })))
     } else {
       const calculatedPrice = getServicePrice(service, passengers)
@@ -132,23 +105,22 @@ export default function NewBooking() {
       setExtraLegs([])
     }
 
-    // Ενημέρωση τιμών σε όλα τα extra services
+    // Ενημέρωση τιμών extra services
     setExtraServices(prev => prev.map(s => ({
       ...s,
       price: getServicePrice(s.service, passengers)
     })))
   }
 
-  const handlePassengersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePassengersChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     if (val === '') {
       setPassengers(0)
       return
     }
-    if (/^\d+$/.test(val)) { // Μόνο ψηφία
+    if (/^\d+$/.test(val)) {
       const num = Number(val)
       setPassengers(num)
-      // Update τιμές
       if (!comboLegs[mainService]) {
         setMainPrice(getServicePrice(mainService, num))
       }
@@ -163,50 +135,6 @@ export default function NewBooking() {
     }
   }
 
-  const toggleMainExternal = () => {
-    const newIsExternal = !mainIsExternal
-    setMainIsExternal(newIsExternal)
-    if (newIsExternal) {
-      const partner = externalPartners[0]
-      setMainExternalPartner(partner.name)
-      setMainExternalCost(partner.defaultCost)
-    } else {
-      setMainExternalPartner('')
-      setMainExternalCost(0)
-    }
-  }
-
-  const handleMainExternalPartnerChange = (partnerName: string) => {
-    setMainExternalPartner(partnerName)
-    const partner = externalPartners.find(p => p.name === partnerName)
-    const cost = partner?.defaultCost || 0
-    setMainExternalCost(cost)
-  }
-
-  const updateExtraLeg = (index: number, field: keyof typeof extraLegs[number], value: string | number | boolean) => {
-    setExtraLegs(prev => prev.map((leg, i) => i === index ? { ...leg, [field]: value } : leg))
-  }
-
-  const toggleExtraExternal = (index: number) => {
-    setExtraLegs(prev => prev.map((leg, i) => {
-      if (i === index) {
-        const isExternal = !leg.isExternal
-        if (isExternal) {
-          const partner = externalPartners[0]
-          return { ...leg, isExternal, externalPartner: partner.name, externalCost: partner.defaultCost }
-        }
-        return { ...leg, isExternal, externalPartner: '', externalCost: 0 }
-      }
-      return leg
-    }))
-  }
-
-  const handleExtraExternalPartnerChange = (index: number, partnerName: string) => {
-    const partner = externalPartners.find(p => p.name === partnerName)
-    updateExtraLeg(index, 'externalPartner', partnerName)
-    updateExtraLeg(index, 'externalCost', partner?.defaultCost || 0)
-  }
-
   const addExtraService = () => {
     const defaultService = availableServices[0]
     const defaultPrice = getServicePrice(defaultService, passengers)
@@ -214,15 +142,12 @@ export default function NewBooking() {
       service: defaultService, 
       price: defaultPrice, 
       time: '', 
-      isExternal: false, 
-      externalPartner: '', 
-      externalCost: 0,
       pickup: '',
       dropoff: ''
     }])
   }
 
-  const updateExtraService = (index: number, field: keyof typeof extraServices[number], value: string | number | boolean) => {
+  const updateExtraService = (index: number, field: keyof typeof extraServices[number], value: string | number) => {
     setExtraServices(prev => prev.map((s, i) => {
       if (i !== index) return s
 
@@ -234,20 +159,6 @@ export default function NewBooking() {
         return { ...s, price: value as number }
       } else if (field === 'time') {
         return { ...s, time: value as string }
-      } else if (field === 'isExternal') {
-        const isExternal = value as boolean
-        if (isExternal) {
-          const partner = externalPartners[0]
-          return { ...s, isExternal, externalPartner: partner.name, externalCost: partner.defaultCost }
-        }
-        return { ...s, isExternal, externalPartner: '', externalCost: 0 }
-      } else if (field === 'externalPartner') {
-        const partnerName = value as string
-        const partner = externalPartners.find(p => p.name === partnerName)
-        const cost = partner?.defaultCost || 0
-        return { ...s, externalPartner: partnerName, externalCost: cost }
-      } else if (field === 'externalCost') {
-        return { ...s, externalCost: value as number }
       } else if (field === 'pickup') {
         return { ...s, pickup: value as string }
       } else if (field === 'dropoff') {
@@ -273,82 +184,23 @@ export default function NewBooking() {
     setExtraStops(prev => prev.filter((_, i) => i !== index))
   }
 
+  const grossRevenue = mainPrice + extraLegs.reduce((sum, leg) => sum + leg.price, 0) + extraServices.reduce((sum, s) => sum + s.price, 0)
+
+  const b2bCommission = grossRevenue * (partnerCommission.value / 100)
+
+  const netProfit = grossRevenue - b2bCommission
+
   const handleSaveBooking = () => {
     console.log('Κράτηση αποθηκεύτηκε!')
     alert('Κράτηση αποθηκεύτηκε επιτυχώς! (mock)')
   }
 
-  const grossRevenue = mainPrice + extraLegs.reduce((sum, leg) => sum + leg.price, 0) + extraServices.reduce((sum, s) => sum + s.price, 0)
-
-  const totalExternalCost = (mainIsExternal ? mainExternalCost : 0) + extraLegs.reduce((sum, leg) => sum + (leg.isExternal ? leg.externalCost : 0), 0) + extraServices.reduce((sum, s) => sum + (s.isExternal ? s.externalCost : 0), 0)
-
-  const selectedB2b = partnersList.find(p => p.name === b2bPartner)
-  const baseForCommission = commissionBase === 'gross' ? grossRevenue : (grossRevenue - totalExternalCost)
-  const b2bCommission = selectedB2b && 'commissionType' in selectedB2b && selectedB2b.commissionValue !== undefined
-    ? selectedB2b.commissionType === 'percentage'
-      ? baseForCommission * selectedB2b.commissionValue / 100
-      : selectedB2b.commissionValue
-    : 0
-
-  const netProfit = grossRevenue - totalExternalCost - b2bCommission
-
-  const b2bLabelWithCommission = selectedB2b && 'commissionType' in selectedB2b
-    ? selectedB2b.commissionType === 'percentage'
-      ? `${b2bPartner} (${selectedB2b.commissionValue}%)`
-      : `${b2bPartner} (${selectedB2b.commissionValue}€ fixed)`
-    : b2bPartner
-
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-7xl mx-auto space-y-12">
-        <h1 className="text-3xl font-bold text-slate-900">Νέα Κράτηση</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Νέα Κράτηση (B2B)</h1>
 
-        {/* B2B ή B2C */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">B2B ή B2C</h2>
-          <select 
-            value={b2bPartner}
-            onChange={(e) => setB2bPartner(e.target.value)}
-            className="w-full max-w-md px-4 py-3 border border-slate-300 rounded-lg"
-          >
-            <option value="">Direct Booking</option>
-            {b2bOptions.map(p => (
-              <option key={p.name} value={p.name}>{p.name}</option>
-            ))}
-          </select>
-
-          {b2bPartner && (
-            <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-              <p className="font-medium text-purple-900 mb-3">Προμήθεια B2B ({b2bPartner}) επί:</p>
-              <div className="flex gap-8">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="commissionBase" 
-                    value="gross"
-                    checked={commissionBase === 'gross'}
-                    onChange={() => setCommissionBase('gross')}
-                    className="w-5 h-5 text-purple-600"
-                  />
-                  <span className="text-purple-800 font-medium">Συνολικού Ποσού</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="commissionBase" 
-                    value="net"
-                    checked={commissionBase === 'net'}
-                    onChange={() => setCommissionBase('net')}
-                    className="w-5 h-5 text-purple-600"
-                  />
-                  <span className="text-purple-800 font-medium">Καθαρού Κέρδους (μετά έξοδα)</span>
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Λίστα Επιβατών - ΤΕΛΙΚΗ ΔΙΟΡΘΩΜΕΝΗ ΕΜΦΑΝΙΣΗ */}
+        {/* Λίστα Επιβατών */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-2xl font-bold text-slate-900 mb-6">Λίστα Επιβατών</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -362,7 +214,6 @@ export default function NewBooking() {
             </div>
           </div>
 
-          {/* Υπόλοιποι Επιβάτες - ΠΟΛΥ ΜΙΚΡΟΤΕΡΟ ΚΟΥΤΙ */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-1">Υπόλοιποι Επιβάτες (copy-paste)</label>
             <textarea 
@@ -372,7 +223,6 @@ export default function NewBooking() {
             />
           </div>
 
-          {/* Άτομα - Τηλέφωνο - Email */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Άτομα</label>
@@ -381,7 +231,7 @@ export default function NewBooking() {
                 inputMode="numeric" 
                 pattern="[0-9]*" 
                 value={passengers === 0 ? '' : passengers} 
-                onChange={(e) => {
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
                   const val = e.target.value
                   if (val === '') {
                     setPassengers(0)
@@ -404,7 +254,7 @@ export default function NewBooking() {
                     })))
                   }
                 }}
-                onWheel={(e) => e.preventDefault()} // Εξασφαλίζει ότι η ροδέλα ΔΕΝ αλλάζει τίποτα
+                onWheel={(e: React.WheelEvent<HTMLInputElement>) => e.preventDefault()} // Εξασφαλίζει ότι η ροδέλα ΔΕΝ αλλάζει τίποτα
                 placeholder="0"
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
@@ -434,7 +284,7 @@ export default function NewBooking() {
             </div>
           </div>
 
-          {/* ΝΕΟ: Hint για tiered pricing */}
+          {/* Hint για tiered pricing */}
           {serviceTiers[mainService] && (
             <p className="text-sm text-blue-600 mt-2 italic">
               Η τιμή υπολογίζεται αυτόματα βάσει αριθμού ατόμων (tiered pricing)
@@ -481,63 +331,6 @@ export default function NewBooking() {
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
                   />
                 </div>
-                <div className="flex items-end">
-                  <div className="flex items-center gap-3">
-                    <input 
-                      type="checkbox" 
-                      checked={mainIsExternal}
-                      onChange={toggleMainExternal}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700">Εξωτερικός</span>
-                  </div>
-                </div>
-                {mainIsExternal && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Συνεργάτες</label>
-                      <select 
-                        value={mainExternalPartner}
-                        onChange={(e) => handleMainExternalPartnerChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg"
-                      >
-                        <option value="">Επιλέξτε</option>
-                        {externalPartners.map(p => (
-                          <option key={p.name} value={p.name}>{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Έξοδο (€)</label>
-                      <input 
-                        type="number" 
-                        value={mainExternalCost}
-                        onChange={(e) => setMainExternalCost(Number(e.target.value))}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
-                      />
-                    </div>
-                  </>
-                )}
-                {!mainIsExternal && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Οδηγός</label>
-                      <select className="w-full px-4 py-3 border border-slate-300 rounded-lg">
-                        <option>-- Μη Ανατεθειμένο --</option>
-                        <option>Νίκος Παπαδόπουλος</option>
-                        <option>Πέτρος Κωνσταντίνου</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Όχημα</label>
-                      <select className="w-full px-4 py-3 border border-slate-300 rounded-lg">
-                        <option>-- Επιλογή --</option>
-                        <option>IKA-1234 - Mercedes V-Class</option>
-                        <option>MYK-9012 - Mercedes Sprinter</option>
-                      </select>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           )}
@@ -554,7 +347,11 @@ export default function NewBooking() {
                       <input 
                         type="time" 
                         value={leg.time || ''}
-                        onChange={(e) => updateExtraLeg(index, 'time', e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                          const newLegs = [...extraLegs]
+                          newLegs[index].time = e.target.value
+                          setExtraLegs(newLegs)
+                        }}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg"
                       />
                     </div>
@@ -563,67 +360,14 @@ export default function NewBooking() {
                       <input 
                         type="number" 
                         value={leg.price}
-                        onChange={(e) => updateExtraLeg(index, 'price', Number(e.target.value))}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                          const newLegs = [...extraLegs]
+                          newLegs[index].price = Number(e.target.value)
+                          setExtraLegs(newLegs)
+                        }}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
                       />
                     </div>
-                    <div className="flex items-end">
-                      <div className="flex items-center gap-3">
-                        <input 
-                          type="checkbox" 
-                          checked={leg.isExternal}
-                          onChange={() => toggleExtraExternal(index)}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-slate-700">Εξωτερικός</span>
-                      </div>
-                    </div>
-                    {leg.isExternal && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Συνεργάτες</label>
-                          <select 
-                            value={leg.externalPartner}
-                            onChange={(e) => handleExtraExternalPartnerChange(index, e.target.value)}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg"
-                          >
-                            <option value="">Επιλέξτε</option>
-                            {externalPartners.map(p => (
-                              <option key={p.name} value={p.name}>{p.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Έξοδο (€)</label>
-                          <input 
-                            type="number" 
-                            value={leg.externalCost}
-                            onChange={(e) => updateExtraLeg(index, 'externalCost', Number(e.target.value))}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
-                          />
-                        </div>
-                      </>
-                    )}
-                    {!leg.isExternal && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Οδηγός</label>
-                          <select className="w-full px-4 py-3 border border-slate-300 rounded-lg">
-                            <option>-- Μη Ανατεθειμένο --</option>
-                            <option>Νίκος Παπαδόπουλος</option>
-                            <option>Πέτρος Κωνσταντίνου</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Όχημα</label>
-                          <select className="w-full px-4 py-3 border border-slate-300 rounded-lg">
-                            <option>-- Επιλογή --</option>
-                            <option>IKA-1234 - Mercedes V-Class</option>
-                            <option>MYK-9012 - Mercedes Sprinter</option>
-                          </select>
-                        </div>
-                      </>
-                    )}
                   </div>
                 </div>
               ))}
@@ -693,7 +437,7 @@ export default function NewBooking() {
 
             {extraServices.map((extra, index) => (
               <div key={index} className="mb-6 p-6 bg-slate-50 rounded-xl">
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-6 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Υπηρεσία</label>
                     <select 
@@ -743,72 +487,6 @@ export default function NewBooking() {
                       onChange={(e) => updateExtraService(index, 'price', Number(e.target.value))}
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
                     />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="checkbox" 
-                        checked={extra.isExternal}
-                        onChange={() => updateExtraService(index, 'isExternal', !extra.isExternal)}
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-slate-700">Εξωτερικός</span>
-                    </div>
-                  </div>
-
-                  {extra.isExternal ? (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Συνεργάτες</label>
-                        <select 
-                          value={extra.externalPartner}
-                          onChange={(e) => updateExtraService(index, 'externalPartner', e.target.value)}
-                          className="w-full px-4 py-3 border border-slate-300 rounded-lg"
-                        >
-                          <option value="">Επιλέξτε</option>
-                          {externalPartners.map(p => (
-                            <option key={p.name} value={p.name}>{p.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Έξοδο (€)</label>
-                        <input 
-                          type="number" 
-                          value={extra.externalCost}
-                          onChange={(e) => updateExtraService(index, 'externalCost', Number(e.target.value))}
-                          className="w-full px-4 py-3 border border-slate-300 rounded-lg font-bold text-xl text-right"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Οδηγός</label>
-                        <select className="w-full px-4 py-3 border border-slate-300 rounded-lg">
-                          <option>-- Μη Ανατεθειμένο --</option>
-                          <option>Νίκος Παπαδόπουλος</option>
-                          <option>Πέτρος Κωνσταντίνου</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Όχημα</label>
-                        <select className="w-full px-4 py-3 border border-slate-300 rounded-lg">
-                          <option>-- Επιλογή --</option>
-                          <option>IKA-1234 - Mercedes V-Class</option>
-                          <option>MYK-9012 - Mercedes Sprinter</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="col-span-1 flex justify-end">
-                    <button 
-                      onClick={() => removeExtraService(index)}
-                      className="text-red-600 hover:text-red-700 text-lg font-bold"
-                    >
-                      ×
-                    </button>
                   </div>
                 </div>
               </div>
@@ -871,41 +549,10 @@ export default function NewBooking() {
                 ))}
               </div>
 
-              {/* Σύνολο Εξόδων */}
-              <div className="flex justify-between items-center font-bold text-lg border-t pt-6 mt-2">
-                <span>Έξοδα</span>
-                <span>-€{(totalExternalCost + b2bCommission).toFixed(2)}</span>
-              </div>
-
-              {/* Breakdown εξόδων */}
-              <div className="space-y-2 pl-6">
-                {mainIsExternal && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Κύρια Υπηρεσία - {mainExternalPartner}</span>
-                    <span>-€{mainExternalCost.toFixed(2)}</span>
-                  </div>
-                )}
-
-                {extraLegs.filter(leg => leg.isExternal).map((leg, idx) => (
-                  <div key={idx} className="flex justify-between text-red-600">
-                    <span>Leg {idx + 1} - {leg.externalPartner}</span>
-                    <span>-€{leg.externalCost.toFixed(2)}</span>
-                  </div>
-                ))}
-
-                {extraServices.filter(s => s.isExternal).map((s, idx) => (
-                  <div key={idx} className="flex justify-between text-red-600">
-                    <span>Extra Υπηρεσία {idx + 1} - {s.externalPartner}</span>
-                    <span>-€{s.externalCost.toFixed(2)}</span>
-                  </div>
-                ))}
-
-                {b2bPartner && b2bCommission > 0 && (
-                  <div className="flex justify-between text-purple-600 font-medium pt-2">
-                    <span>Προμήθεια B2B ({b2bLabelWithCommission})</span>
-                    <span>-€{b2bCommission.toFixed(2)}</span>
-                  </div>
-                )}
+              {/* Προμήθεια */}
+              <div className="flex justify-between border-t pt-4 font-bold text-xl mt-4">
+                <span>Προμήθεια B2B</span>
+                <span className="text-red-600">-€{b2bCommission.toFixed(2)}</span>
               </div>
 
               {/* Καθαρό Κέρδος */}

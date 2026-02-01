@@ -3,14 +3,15 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Calendar, Star, MapPin, MessageSquare, LogOut } from 'lucide-react'
+import { Home, Calendar, Star, MapPin, LogOut } from 'lucide-react'
+import FloatingAI from '@/components/ai/FloatingAI' // ← το ίδιο component με την κεντρική πλατφόρμα
 
 const navItems = [
   { name: 'Dashboard', href: '/b2b/dashboard', icon: Home },
   { name: 'Κρατήσεις', href: '/b2b/bookings', icon: Calendar },
   { name: 'Reviews', href: '/b2b/reviews', icon: Star },
   { name: 'Live Tracking', href: '/b2b/tracking', icon: MapPin },
-  { name: 'AI Βοηθός', href: '/b2b/ai', icon: MessageSquare },
+  // Βγάλαμε το AI Βοηθός από το menu – τώρα είναι floating button
 ]
 
 export default function B2BLayout({ children }: { children: React.ReactNode }) {
@@ -59,7 +60,7 @@ export default function B2BLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content – κεντραρισμένο σωστά */}
+      {/* Main Content */}
       <div className={`min-h-screen transition-all duration-300 ${isOpen ? 'lg:ml-64' : 'lg:ml-0'}`}>
         {/* Mobile Menu Button */}
         <div className="lg:hidden p-4 bg-white border-b sticky top-0 z-40">
@@ -80,6 +81,11 @@ export default function B2BLayout({ children }: { children: React.ReactNode }) {
           onClick={() => setIsOpen(false)}
         />
       )}
+
+      {/* Floating AI Button – ΠΑΝΤΑ ορατό στο B2B portal */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <FloatingAI />
+      </div>
     </div>
   )
 }
